@@ -29,7 +29,7 @@ impl Tree {
     }
 
     pub fn to_string(&self) -> Vec<u8> {
-        let Mode = "100644";
+
         let mut content = vec![];
         //order by filename
         let mut order_entries = vec![];
@@ -39,6 +39,7 @@ impl Tree {
         order_entries.sort_by(|a, b| a.get_filename().cmp(b.get_filename()));
 
         for entry in order_entries.iter() {
+            let Mode = entry.get_mode();
             content.extend_from_slice(Mode.as_bytes());
             content.push(b' ');
             content.extend_from_slice(entry.get_filename().as_bytes());

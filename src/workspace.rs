@@ -28,4 +28,8 @@ impl Workspace {
     pub fn read_file(&self, path: &PathBuf) -> String {
         std::fs::read_to_string(self.path_name.join(path)).unwrap()
     }
+
+    pub fn stat_file(&self, path: &PathBuf) -> std::fs::Metadata {
+        std::fs::metadata(self.path_name.join(path)).unwrap()
+    }
 }

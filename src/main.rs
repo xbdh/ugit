@@ -47,8 +47,9 @@ fn main() {
                 let content = workspace.read_file(&PathBuf::from(&dir_entry.file_name()));
                 let blob = ugit::blob::Blob::new(content);
                 let bhash = database.store_blob(blob);
+                let stat=workspace.stat_file(&PathBuf::from(&dir_entry.file_name()));
 
-                let entry = Entry::new(file_name, bhash);
+                let entry = Entry::new(file_name, bhash, stat);
                 entrys.push(entry);
             }
             let tree = Tree::new(entrys);
