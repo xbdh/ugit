@@ -70,6 +70,11 @@ impl Database {
     }
 
     pub fn write_object(&self, hash: &str, content: &Vec<u8>) {
+        let object_path = self.path_name.join(hash[0..2].to_string()).join(hash[2..].to_string());
+        let dirname=object_path.parent().unwrap();
+        if object_path.exists() {
+            return;
+        }
         let blob_path = self.path_name.join(hash[0..2].to_string());
         fs::create_dir_all(&blob_path).unwrap();
         let blob_name = blob_path.join(&hash[2..]);

@@ -6,3 +6,4 @@ pub mod database;
 pub mod entry;
 pub mod tree;
 pub mod workspace;
+pub mod refs;

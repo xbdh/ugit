@@ -6,6 +6,7 @@ use ugit::author::Author;
 use ugit::cmd::{Cmd, Command};
 use ugit::commit::GCommit;
 use ugit::entry::Entry;
+use ugit::refs::Refs;
 use ugit::tree::Tree;
 
 fn main() {
@@ -37,6 +38,7 @@ fn main() {
             let obj_path = git_path.join("objects");
             let workspace = ugit::workspace::Workspace::new(root_path);
             let database = ugit::database::Database::new(obj_path);
+            let refs=Refs::new(git_path);
             let dir_entrys = workspace.list_files();
             let mut entrys = vec![];
             for dir_entry in dir_entrys {
@@ -56,16 +58,15 @@ fn main() {
             let email = "1344535251@qq.com";
             let message = "first commit";
             let author = Author::new(name, email);
-            let mut commit = GCommit::new(tree_hash, author, message);
+            let parent_id = refs.read_head();
+
+            let mut commit = GCommit::new(parent_id,tree_hash, author, message);
 
             let commit_hash = database.store_commit(commit);
+            refs.update_head(&commit_hash);
 
             println!("tree_hash: {}", commit_hash);
 
-            // write to HEAD
-            let head_path = git_path.join("HEAD");
-            let mut head_file = fs::File::create(head_path).unwrap();
-            head_file.write_all(commit_hash.as_bytes()).unwrap();
         }
     }
 }
