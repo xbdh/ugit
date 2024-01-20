@@ -1,6 +1,7 @@
 use crate::blob::{compress, Blob, GHash};
 use crate::commit::GCommit;
-use crate::tree::Tree;
+use crate::entry::Entry;
+use crate::tree::{Tree, TreeEntry};
 use sha1::Digest;
 use std::fs;
 use std::fs::OpenOptions;
@@ -16,9 +17,9 @@ impl Database {
         Self { path_name }
     }
 
-    pub fn store_blob(&self, blob: Blob) -> GHash {
+    pub fn store_blob(&self, blob: &mut Blob) -> GHash {
         let content = format!("{} {}\0{}", blob.type_(), blob.data.len(), blob.data);
-        println!("blob content: {}", content);
+        //println!("blob content: {}", content);
         let mut content = vec![];
         content.extend_from_slice(blob.type_().as_bytes());
         content.push(b' ');
@@ -30,13 +31,17 @@ impl Database {
         hasher.update(content.clone());
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
-        println!("hash: {}", hash);
+        println!("blob hash: {}", hash);
+
+        blob.set_object_id(hash.clone());
+
         self.write_object(&hash, &content);
         hash
     }
 
-    pub fn store_tree(&self, tree: Tree) -> GHash {
+    pub fn store_tree(&self, tree: &mut Tree) {
         //let content = format!("{} {}\0{}", tree.type_(), tree.len(), tree.to_string());
+        println!("---tree---: {:?}", tree);
         let mut vv = vec![];
         vv.extend_from_slice(tree.type_().as_bytes());
         vv.push(b' ');
@@ -50,10 +55,30 @@ impl Database {
         hasher.update(vv.clone());
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
+        tree.set_object_id(hash.clone());
         self.write_object(&hash, &vv);
-        hash
+        //hash
     }
-
+    // pub fn store_entry(&self, entry:&mut  Entry) -> GHash {
+    //     //let content = format!("{} {}\0{}", tree.type_(), tree.len(), tree.to_string());
+    //
+    //     let mut vv = vec![];
+    //     vv.extend_from_slice(entry.type_().as_bytes());
+    //     vv.push(b' ');
+    //     vv.extend_from_slice(entry.len().to_string().as_bytes());
+    //
+    //     vv.push(b'\0');
+    //     vv.extend_from_slice(&entry.to_string());
+    //
+    //     //println!("tree content: {}", vv);
+    //     let mut hasher = sha1::Sha1::new();
+    //     hasher.update(vv.clone());
+    //     let hash = hasher.finalize();
+    //     let hash = format!("{:x}", hash);
+    //     //entry.set_object_id(hash.clone());
+    //     self.write_object(&hash, &vv);
+    //     hash
+    // }
     pub fn store_commit(&self, commit: GCommit) -> GHash {
         let mut content = vec![];
         content.extend_from_slice(commit.type_().as_bytes());
@@ -70,8 +95,11 @@ impl Database {
     }
 
     pub fn write_object(&self, hash: &str, content: &Vec<u8>) {
-        let object_path = self.path_name.join(hash[0..2].to_string()).join(hash[2..].to_string());
-        let dirname=object_path.parent().unwrap();
+        let object_path = self
+            .path_name
+            .join(hash[0..2].to_string())
+            .join(hash[2..].to_string());
+        let dirname = object_path.parent().unwrap();
         if object_path.exists() {
             return;
         }

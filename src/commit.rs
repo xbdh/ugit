@@ -11,7 +11,7 @@ pub struct GCommit {
 }
 
 impl GCommit {
-    pub fn new(parent_id :Option<GHash>,tree_id: GHash, author: Author, message: &str) -> Self {
+    pub fn new(parent_id: Option<GHash>, tree_id: GHash, author: Author, message: &str) -> Self {
         Self {
             parent_id: parent_id,
             oject_id: "".to_string(),
@@ -34,7 +34,7 @@ impl GCommit {
         content.extend_from_slice(self.tree_id.as_bytes());
         content.push(b'\n');
 
-       match self.parent_id {
+        match self.parent_id {
             Some(ref parent_id) => {
                 content.extend_from_slice("parent ".as_bytes());
                 // content.push(b' ');
@@ -42,7 +42,7 @@ impl GCommit {
                 content.push(b'\n');
             }
             None => {}
-       }
+        }
 
         content.extend_from_slice("author ".as_bytes());
         // content.push(b' ');

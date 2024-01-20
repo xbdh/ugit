@@ -16,7 +16,11 @@ fn visit_dirs(dir: &Path, level: usize) -> std::io::Result<()> {
                 visit_dirs(&path, level + 1)?;
             } else {
                 // 打印文件的完整路径和层级
-                println!("{}: {}", "-".repeat(level * 4) + &format!(" Level {}", level), path.display());
+                println!(
+                    "{}: {}",
+                    "-".repeat(level * 4) + &format!(" Level {}", level),
+                    path.display()
+                );
             }
         }
     }

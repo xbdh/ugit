@@ -5,7 +5,7 @@ pub type GHash = String;
 #[derive(Debug, Clone)]
 pub struct Blob {
     pub data: String,
-    object_id: GHash,
+    pub object_id: GHash,
 }
 
 impl Blob {
@@ -22,6 +22,9 @@ impl Blob {
 
     pub fn set_object_id(&mut self, object_id: GHash) {
         self.object_id = object_id;
+    }
+    pub fn get_object_id(&self) -> &str {
+        &self.object_id
     }
 }
 
