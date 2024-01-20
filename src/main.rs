@@ -65,10 +65,7 @@ fn main() {
                 );
                 entrys.push(entry);
             }
-            // println!("total entrys {:?}", entrys);
-            // entrys.sort_by(
-            //     |a, b| a.get_filename().cmp(&b.get_filename()),
-            // );
+
 
 
             let mut tree = Tree::new(entrys);
@@ -83,21 +80,20 @@ fn main() {
             println!("============");
 
             println!("tree id: {}", tree.get_object_id());
-            // let tree = Tree::new(entrys);
-            // let tree_hash = database.store_tree(tree);
-            //
-            // let name = "rain";
-            // let email = "1344535251@qq.com";
-            // let message = "first commit";
-            // let author = Author::new(name, email);
-            // let parent_id = refs.read_head();
-            //
-            // let mut commit = GCommit::new(parent_id,tree_hash, author, message);
-            //
-            // let commit_hash = database.store_commit(commit);
-            // refs.update_head(&commit_hash);
-            //
-            // println!("tree_hash: {}", commit_hash);
+            let tree_hash = tree.get_object_id();
+
+            let name = "rain";
+            let email = "1344535251@qq.com";
+            let message = "first commit";
+            let author = Author::new(name, email);
+            let parent_id = refs.read_head();
+
+            let mut commit = GCommit::new(parent_id,tree_hash.to_string(), author, message);
+
+            let commit_hash = database.store_commit(commit);
+            refs.update_head(&commit_hash);
+
+            println!("tree_hash: {}", commit_hash);
         }
     }
 }
