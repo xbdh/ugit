@@ -1,15 +1,13 @@
-use crate::blob::GHash;
+
 use crate::entry::Entry;
 use hex;
-use std::collections::{BTreeMap, HashMap};
-use std::hash::Hash;
 use std::path::PathBuf;
 
-// use fnv::FnvBuildHasher;
-// use fxhash::FxBuildHasher;
-use indexmap::{IndexMap, IndexSet};
 
-// type FnvIndexMap<K, V> = IndexMap<K, V>;
+use indexmap::IndexMap;
+use crate::database::GHash;
+
+
 
 #[derive(Debug, Clone)]
 pub struct Tree {
@@ -99,12 +97,12 @@ impl Tree {
         F: for<'a> Fn(&'a mut Tree),
     {
         // build a empty tree
-        let mut mytree = Tree {
-            entries: IndexMap::new(),
-            object_id: "".to_string(),
-        };
-        for (path, treeEntry) in self.entries.iter_mut() {
-            match treeEntry {
+        // let mut mytree = Tree {
+        //     entries: IndexMap::new(),
+        //     object_id: "".to_string(),
+        // };
+        for (path, tree_entry) in self.entries.iter_mut() {
+            match tree_entry {
                 //nothing to do
                 TreeEntry::SubTree(tree) => {
                     //mytree=tree.clone();
@@ -129,15 +127,15 @@ fn add_entry(entriesmp: &mut IndexMap<PathBuf, TreeEntry>, parent: Vec<PathBuf>,
         let p1 = parent1.remove(0);
 
         let p1b = PathBuf::from(p1.file_name().unwrap());
-        let mut treetemp = Tree {
+        let mut tree_temp = Tree {
             entries: IndexMap::new(),
             object_id: "".to_string(),
         };
-        let treeEntry = entriesmp.get_mut(&p1b);
-        match treeEntry {
-            Some(treeEntry) => match treeEntry {
+        let tree_entry = entriesmp.get_mut(&p1b);
+        match tree_entry {
+            Some(tree_entry) => match tree_entry {
                 TreeEntry::SubTree(tree) => {
-                    treetemp = tree.clone();
+                    tree_temp = tree.clone();
                 }
                 TreeEntry::Entry(entry) => {
                     panic!("error");
@@ -145,7 +143,7 @@ fn add_entry(entriesmp: &mut IndexMap<PathBuf, TreeEntry>, parent: Vec<PathBuf>,
             },
             None => {
                 //let basename= p1.file_name().unwrap(); //a,a/b的last path
-                entriesmp.insert(p1b, TreeEntry::SubTree(treetemp.clone()));
+                entriesmp.insert(p1b, TreeEntry::SubTree(tree_temp.clone()));
             }
         }
 
@@ -153,9 +151,9 @@ fn add_entry(entriesmp: &mut IndexMap<PathBuf, TreeEntry>, parent: Vec<PathBuf>,
         // remove first of parent
         let p2 = nextparent.remove(0);
         let p2b = PathBuf::from(p2.file_name().unwrap());
-        add_entry(&mut treetemp.entries, nextparent, entry);
+        add_entry(&mut tree_temp.entries, nextparent, entry);
 
-        entriesmp.insert(p2b, TreeEntry::SubTree(treetemp.clone()));
+        entriesmp.insert(p2b, TreeEntry::SubTree(tree_temp.clone()));
         // let bn=p.file_name();
         // match bn {
         //     Some(bn) => {

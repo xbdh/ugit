@@ -1,6 +1,6 @@
 use crate::author::Author;
-use crate::blob::GHash;
-use crate::tree::Tree;
+use crate::database::GHash;
+
 
 pub struct GCommit {
     oject_id: GHash,
@@ -13,7 +13,7 @@ pub struct GCommit {
 impl GCommit {
     pub fn new(parent_id: Option<GHash>, tree_id: GHash, author: Author, message: &str) -> Self {
         Self {
-            parent_id: parent_id,
+            parent_id,
             oject_id: "".to_string(),
             tree_id,
             author,
@@ -34,14 +34,11 @@ impl GCommit {
         content.extend_from_slice(self.tree_id.as_bytes());
         content.push(b'\n');
 
-        match self.parent_id {
-            Some(ref parent_id) => {
-                content.extend_from_slice("parent ".as_bytes());
-                // content.push(b' ');
-                content.extend_from_slice(parent_id.as_bytes());
-                content.push(b'\n');
-            }
-            None => {}
+        if let Some(ref parent_id) = self.parent_id {
+            content.extend_from_slice("parent ".as_bytes());
+            // content.push(b' ');
+            content.extend_from_slice(parent_id.as_bytes());
+            content.push(b'\n');
         }
 
         content.extend_from_slice("author ".as_bytes());

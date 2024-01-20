@@ -1,13 +1,20 @@
-use crate::blob::{compress, Blob, GHash};
-use crate::commit::GCommit;
-use crate::entry::Entry;
-use crate::tree::{Tree, TreeEntry};
+pub mod blob;
+pub mod commit;
+pub mod tree;
+
 use sha1::Digest;
-use std::fs;
+use std::{fs, io};
 use std::fs::OpenOptions;
 use std::io::{Read, Write};
 use std::path::PathBuf;
+use flate2::Compression;
+use flate2::read::ZlibDecoder;
+use flate2::write::ZlibEncoder;
+use crate::database::blob::Blob;
+use crate::database::commit::GCommit;
+use crate::database::tree::Tree;
 
+pub type GHash = String;
 pub struct Database {
     pub path_name: PathBuf,
 }
@@ -18,7 +25,7 @@ impl Database {
     }
 
     pub fn store_blob(&self, blob: &mut Blob) -> GHash {
-        let content = format!("{} {}\0{}", blob.type_(), blob.data.len(), blob.data);
+        //let content = format!("{} {}\0{}", blob.type_(), blob.data.len(), blob.data);
         //println!("blob content: {}", content);
         let mut content = vec![];
         content.extend_from_slice(blob.type_().as_bytes());
@@ -59,26 +66,7 @@ impl Database {
         self.write_object(&hash, &vv);
         //hash
     }
-    // pub fn store_entry(&self, entry:&mut  Entry) -> GHash {
-    //     //let content = format!("{} {}\0{}", tree.type_(), tree.len(), tree.to_string());
-    //
-    //     let mut vv = vec![];
-    //     vv.extend_from_slice(entry.type_().as_bytes());
-    //     vv.push(b' ');
-    //     vv.extend_from_slice(entry.len().to_string().as_bytes());
-    //
-    //     vv.push(b'\0');
-    //     vv.extend_from_slice(&entry.to_string());
-    //
-    //     //println!("tree content: {}", vv);
-    //     let mut hasher = sha1::Sha1::new();
-    //     hasher.update(vv.clone());
-    //     let hash = hasher.finalize();
-    //     let hash = format!("{:x}", hash);
-    //     //entry.set_object_id(hash.clone());
-    //     self.write_object(&hash, &vv);
-    //     hash
-    // }
+
     pub fn store_commit(&self, commit: GCommit) -> GHash {
         let mut content = vec![];
         content.extend_from_slice(commit.type_().as_bytes());
@@ -99,7 +87,7 @@ impl Database {
             .path_name
             .join(hash[0..2].to_string())
             .join(hash[2..].to_string());
-        let dirname = object_path.parent().unwrap();
+        //let dirname = object_path.parent().unwrap();
         if object_path.exists() {
             return;
         }
@@ -116,4 +104,18 @@ impl Database {
         let mut file = std::io::BufWriter::new(file);
         file.write_all(&compressed).unwrap();
     }
+}
+
+pub fn compress(data: &[u8]) -> io::Result<Vec<u8>> {
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(data)?;
+    encoder.finish()
+}
+
+// 解压数据
+pub fn decompress(data: &[u8]) -> io::Result<Vec<u8>> {
+    let mut decoder = ZlibDecoder::new(data);
+    let mut decompressed = Vec::new();
+    decoder.read_to_end(&mut decompressed)?;
+    Ok(decompressed)
 }

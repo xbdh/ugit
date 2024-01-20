@@ -1,10 +1,9 @@
-use crate::blob::GHash;
-use clap::builder::ValueRange;
+
 use std::fmt::Debug;
 use std::fs::Metadata;
-use std::os::linux::raw::stat;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use crate::database::GHash;
 
 #[derive(Clone)]
 pub struct Entry {
@@ -24,7 +23,7 @@ impl Debug for Entry {
 impl Entry {
     pub fn new(filename: PathBuf, object_id: &str, stat: Metadata) -> Self {
         Self {
-            filename: filename,
+            filename,
             object_id: object_id.to_string(),
             stat,
         }
@@ -42,9 +41,10 @@ impl Entry {
             return "40000";
         }
         if self.stat.permissions().mode() & 0o100 == 0o100 {
-            return "100755";
+             "100755"
+        }else{
+            "100644"
         }
-        return "100644";
     }
 
     pub fn parent_dir(&self) -> Vec<PathBuf> {

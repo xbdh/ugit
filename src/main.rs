@@ -1,15 +1,14 @@
 use clap::Parser;
-use std::fmt::format;
 use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 use ugit::author::Author;
-use ugit::blob::Blob;
 use ugit::cmd::{Cmd, Command};
-use ugit::commit::GCommit;
+use ugit::database::blob::Blob;
+use ugit::database::commit::GCommit;
+use ugit::database::tree::{Tree, TreeEntry};
 use ugit::entry::Entry;
 use ugit::refs::Refs;
-use ugit::tree::{Tree, TreeEntry};
+
 
 fn main() {
     let cmd = Cmd::parse();
@@ -56,7 +55,7 @@ fn main() {
                 let bhash = database.store_blob(&mut blob);
                 let stat = workspace.stat_file(&file_path);
 
-                let spath = file_path.to_str().unwrap();
+                //let spath = file_path.to_str().unwrap();
                 let entry = Entry::new(file_path, &bhash, stat);
                 println!(
                     "entry: {:?} {:?}",

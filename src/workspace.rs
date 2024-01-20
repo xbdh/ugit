@@ -1,8 +1,7 @@
-use std::collections::HashMap;
+
 use std::fs::DirEntry;
 use std::path::{Path, PathBuf};
-use std::ptr::hash;
-use std::{fs, io};
+use std::{fs};
 
 pub struct Workspace {
     pub path_name: PathBuf,
@@ -49,7 +48,7 @@ impl Workspace {
         fs::read_to_string(self.path_name.join(path)).unwrap()
     }
 
-    pub fn stat_file(&self, path: &PathBuf) -> std::fs::Metadata {
-        std::fs::metadata(self.path_name.join(path)).unwrap()
+    pub fn stat_file(&self, path: &PathBuf) -> fs::Metadata {
+        fs::metadata(self.path_name.join(path)).unwrap()
     }
 }
