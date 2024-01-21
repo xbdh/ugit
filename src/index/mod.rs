@@ -150,6 +150,7 @@ impl Index {
                 file_size,
                 oid: hex::encode(oid),
                 path: String::from_utf8(path).unwrap(),
+                stat:std::fs::metadata(self.pathname.clone()).unwrap(),
             };
             index_entrys.insert(index_entry.path.clone(),index_entry);
         }

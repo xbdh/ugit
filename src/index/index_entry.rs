@@ -18,6 +18,7 @@ pub struct IndexEntry {
     pub file_size: u32,
     pub oid: String,
     pub path: String,
+    pub stat:Metadata,
 }
 impl IndexEntry {
     
@@ -37,6 +38,10 @@ impl IndexEntry {
 
             oid: oid,
             path: pathname.to_str().unwrap().to_string(),
+            stat:stat,
         }
+    }
+    pub fn get_stat(&self) -> Metadata {
+        self.stat.clone()
     }
 }

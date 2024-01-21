@@ -30,7 +30,6 @@ impl Tree {
 
         let mut entries = IndexMap::new();
         for entry in sorted_entrys.iter() {
-            println!("parent_dir: {:?}", entry.parent_dir());
             add_entry(&mut entries, entry.parent_dir(), entry.clone());
         }
         Self {

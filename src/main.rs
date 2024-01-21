@@ -65,39 +65,32 @@ fn main() {
             index.write_updates();
         }
 
-        Command::Commit => {
+        Command::Commit(commit_cmd) => {
+            let message = commit_cmd.message;
             let root_path = std::env::current_dir().unwrap();
             let root_path = root_path.join("abcd");
 
             println!("commit in {:?}", root_path);
             let git_path = root_path.join(".git");
             let obj_path = git_path.join("objects");
+            let index_path = git_path.join("index");
             let workspace = Workspace::new(root_path.clone());
             let database = Database::new(obj_path);
             let refs = Refs::new(git_path);
-            let dir_entrys = workspace.list_files(root_path.clone());
 
-
+            let index_entrys = Index::new(index_path).load();
+            // convert index_entrys to entrys
             let mut entrys = vec![];
-            // dir_entrys 是full path
-            // entrys 是相对路径 ,without root path
-            for relative_path in dir_entrys {
 
-                let content = workspace.read_file(& relative_path);
-                let mut blob = Blob::new(content);
-                let bhash = database.store_blob(&mut blob);
-                let stat = workspace.stat_file(& relative_path);
+            // read from index not from workspace
+            for (_, index_entry) in index_entrys.iter() {
+                let file_path = PathBuf::from(index_entry.path.clone());
+                let bhash = index_entry.oid.clone();
+                let stat = index_entry.get_stat();
 
-                //let spath = file_path.to_str().unwrap();
-                let entry = Entry::new( relative_path, &bhash, stat);
-                println!(
-                    "entry: {:?} {:?}",
-                    entry.get_filename(),
-                    entry.get_object_id()
-                );
+                let entry=Entry::new(file_path, &bhash, stat);
                 entrys.push(entry);
             }
-
 
 
             let mut tree = Tree::new(entrys);
@@ -107,20 +100,18 @@ fn main() {
             };
             tree.traverse(&func);
             println!("result tree: {:?}", tree);
-            // println!("============");
-            // tree.traverse()
-            println!("============");
+
 
             println!("tree id: {}", tree.get_object_id());
             let tree_hash = tree.get_object_id();
 
             let name = "rain";
             let email = "1344535251@qq.com";
-            let message = "first commit";
+            //let message = "first commit";
             let author = Author::new(name, email);
             let parent_id = refs.read_head();
 
-            let mut commit = GCommit::new(parent_id,tree_hash.to_string(), author, message);
+            let mut commit = GCommit::new(parent_id,tree_hash.to_string(), author, message.as_str());
 
             let commit_hash = database.store_commit(commit);
             refs.update_head(&commit_hash);

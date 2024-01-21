@@ -38,7 +38,7 @@ impl Database {
         hasher.update(content.clone());
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
-        println!("blob hash: {}", hash);
+        println!("store blob hash: {}", hash);
 
         blob.set_object_id(hash.clone());
 
@@ -46,9 +46,8 @@ impl Database {
         hash
     }
 
-    pub fn store_tree(&self, tree: &mut Tree) {
+    pub fn store_tree(&self, tree: &mut Tree)-> GHash {
         //let content = format!("{} {}\0{}", tree.type_(), tree.len(), tree.to_string());
-        println!("---tree---: {:?}", tree);
         let mut vv = vec![];
         vv.extend_from_slice(tree.type_().as_bytes());
         vv.push(b' ');
@@ -62,9 +61,12 @@ impl Database {
         hasher.update(vv.clone());
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
+
+        println!("store tree hash: {}", hash);
+
         tree.set_object_id(hash.clone());
         self.write_object(&hash, &vv);
-        //hash
+        hash
     }
 
     pub fn store_commit(&self, commit: GCommit) -> GHash {
@@ -78,6 +80,7 @@ impl Database {
         hasher.update(content.clone());
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
+        println!("store commit hash: {}", hash);
         self.write_object(&hash, &content);
         hash
     }
