@@ -5,9 +5,12 @@ use ugit::author::Author;
 use ugit::cmd::{Cmd, Command};
 use ugit::database::blob::Blob;
 use ugit::database::commit::GCommit;
+use ugit::database::Database;
 use ugit::database::tree::{Tree, TreeEntry};
 use ugit::entry::Entry;
+use ugit::index::Index;
 use ugit::refs::Refs;
+use ugit::workspace::Workspace;
 
 
 fn main() {
@@ -21,42 +24,74 @@ fn main() {
             };
             let git_path = root_path.join(".git");
             let obj_path = git_path.join("objects");
+            let index_path = git_path.join("index");
             let refs_path = git_path.join("refs");
-            // create dir
+
+            let workspace = Workspace::new(root_path.clone());
+            let database = Database::new(obj_path.clone());
+
             fs::create_dir_all(&obj_path).unwrap();
             fs::create_dir_all(&refs_path).unwrap();
             println!("init a repo in {:?}", root_path);
         }
-        Command::Add => {
-            println!("add")
+        Command::Add(add_cmd) => {
+            println!("add cmd :Args: {:?}", add_cmd);
+            let root_path = std::env::current_dir().unwrap();
+            let root_path = root_path.join("abcd");
+
+            let git_path = root_path.join(".git");
+            let obj_path = git_path.join("objects");
+            let index_path = git_path.join("index");
+
+            let workspace = Workspace::new(root_path.clone());
+            let database = Database::new(obj_path);
+            let mut index=Index::new(index_path);
+
+            for path in add_cmd.path.iter() {
+                let file_list=workspace.list_files(path.clone());
+                for file_path in file_list.iter() {
+                    let file_data=workspace.read_file(file_path);
+                    let file_stat=workspace.stat_file(file_path);
+
+                    let mut blob=Blob::new(file_data);
+
+                    let bhash=database.store_blob(&mut blob);
+                    println!("bhash: {}",bhash);
+                    index.add(file_path.clone(), bhash,file_stat);
+                }
+
+            }
+
+            index.write_updates();
+
+
         }
 
         Command::Commit => {
             let root_path = std::env::current_dir().unwrap();
             let root_path = root_path.join("abcd");
+
             println!("commit in {:?}", root_path);
             let git_path = root_path.join(".git");
             let obj_path = git_path.join("objects");
-            let workspace = ugit::workspace::Workspace::new(root_path.clone());
-            let database = ugit::database::Database::new(obj_path);
+            let workspace = Workspace::new(root_path.clone());
+            let database = Database::new(obj_path);
             let refs = Refs::new(git_path);
-            let dir_entrys = workspace.list_files();
+            let dir_entrys = workspace.list_files(root_path.clone());
 
 
             let mut entrys = vec![];
             // dir_entrys 是full path
             // entrys 是相对路径 ,without root path
-            for dir_entry in dir_entrys {
-                let file_full_path = dir_entry.path();
-                let file_without_root_path = file_full_path.strip_prefix(&root_path).unwrap();
-                let file_path = PathBuf::from(file_without_root_path);
-                let content = workspace.read_file(&file_path);
+            for relative_path in dir_entrys {
+
+                let content = workspace.read_file(& relative_path);
                 let mut blob = Blob::new(content);
                 let bhash = database.store_blob(&mut blob);
-                let stat = workspace.stat_file(&file_path);
+                let stat = workspace.stat_file(& relative_path);
 
                 //let spath = file_path.to_str().unwrap();
-                let entry = Entry::new(file_path, &bhash, stat);
+                let entry = Entry::new( relative_path, &bhash, stat);
                 println!(
                     "entry: {:?} {:?}",
                     entry.get_filename(),

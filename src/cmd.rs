@@ -24,7 +24,7 @@ pub enum Command {
     Init(InitCmd),
 
     #[clap(about = "add a file")]
-    Add,
+    Add(AddCmd),
 
     #[clap(about = "commit a file")]
     Commit,
@@ -34,4 +34,10 @@ pub struct InitCmd {
     // info: String,
     #[clap(help = "path to create repo")]
     pub path: Option<PathBuf>,
+}
+
+#[derive(Args, Debug)]
+pub struct AddCmd {
+    #[clap(help = "path to add file")]
+    pub path: Vec<PathBuf>,
 }

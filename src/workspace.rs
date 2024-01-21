@@ -13,21 +13,25 @@ impl Workspace {
     // fn ignore() -> Vec<PathBuf> {
     //     vec![".git".into(), ".".into(), "..".into()]
     // }
-    pub fn list_files(&self) -> Vec<DirEntry> {
-        let mut files = vec![];
-        // for entry in self.path_name.read_dir().unwrap() {
-        //     let entry = entry.unwrap();
-        //     // ignore .git . .. files
-        //     if entry.file_name() == ".git" || entry.file_name() == "." || entry.file_name() == ".."
-        //     {
-        //         continue;
-        //     }
-        //     files.push(entry);
-        // }
-        // files
-        self.visit_dirs(&self.path_name, &mut files);
-        files
+    pub fn list_files(&self,file_or_dir:PathBuf) -> Vec<PathBuf> {
+        let mut dir_entrys = vec![];
+        let mut relative_path = vec![];
+        let full_path=&self.path_name.join(file_or_dir.clone());
+        if full_path.is_file(){
+            relative_path.push(file_or_dir);
+            relative_path
+        }else {
+            self.visit_dirs(&full_path, &mut dir_entrys);
+            for dir_entry in dir_entrys{
+                let file_full_path = dir_entry.path();
+                let file_without_root_path = file_full_path.strip_prefix(&self.path_name).unwrap();
+                let file_path = PathBuf::from(file_without_root_path);
+                relative_path.push(file_path);
+            }
+            relative_path
+        }
     }
+
     pub fn visit_dirs(&self, dir: &Path, entrys: &mut Vec<DirEntry>) {
         if dir.is_dir() {
             for entry in fs::read_dir(dir).unwrap() {
