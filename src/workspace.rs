@@ -14,9 +14,11 @@ impl Workspace {
     //     vec![".git".into(), ".".into(), "..".into()]
     // }
     pub fn list_files(&self,file_or_dir:PathBuf) -> Vec<PathBuf> {
+
         let mut dir_entrys = vec![];
         let mut relative_path = vec![];
         let full_path=&self.path_name.join(file_or_dir.clone());
+
         if full_path.is_file(){
             relative_path.push(file_or_dir);
             relative_path
@@ -37,7 +39,7 @@ impl Workspace {
             for entry in fs::read_dir(dir).unwrap() {
                 let entry = entry.unwrap();
                 let path = entry.path();
-                if path.is_dir() && path.file_name().unwrap() != ".git" {
+                if path.is_dir() && path.file_name().unwrap() != ".git"&& path.file_name().unwrap() != "."&& path.file_name().unwrap() != ".." {
                     self.visit_dirs(&path, entrys);
                 } else {
                     if path.file_name().unwrap() != ".git" {

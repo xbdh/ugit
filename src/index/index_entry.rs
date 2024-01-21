@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crate::database::GHash;
 
 
+#[derive(Debug,Clone)]
 pub struct IndexEntry {
     pub ctime: u32,
     pub ctime_nsec: u32,
@@ -16,7 +17,6 @@ pub struct IndexEntry {
     pub gid: u32,
     pub file_size: u32,
     pub oid: String,
-    pub flags: u16,
     pub path: String,
 }
 impl IndexEntry {
@@ -36,7 +36,6 @@ impl IndexEntry {
             file_size: stat.size() as u32,
 
             oid: oid,
-            flags: 0,
             path: pathname.to_str().unwrap().to_string(),
         }
     }

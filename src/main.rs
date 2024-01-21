@@ -47,8 +47,11 @@ fn main() {
             let database = Database::new(obj_path);
             let mut index=Index::new(index_path);
 
+            let sbc=index.load();
+
             for path in add_cmd.path.iter() {
                 let file_list=workspace.list_files(path.clone());
+                //println!("file_list: {:?}", file_list);
                 for file_path in file_list.iter() {
                     let file_data=workspace.read_file(file_path);
                     let file_stat=workspace.stat_file(file_path);
@@ -56,15 +59,10 @@ fn main() {
                     let mut blob=Blob::new(file_data);
 
                     let bhash=database.store_blob(&mut blob);
-                    println!("bhash: {}",bhash);
                     index.add(file_path.clone(), bhash,file_stat);
                 }
-
             }
-
             index.write_updates();
-
-
         }
 
         Command::Commit => {
