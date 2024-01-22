@@ -1,10 +1,11 @@
+use std::fmt::Debug;
 use std::fs::Metadata;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
 use crate::database::GHash;
 
 
-#[derive(Debug,Clone)]
+#[derive(Clone)]
 pub struct IndexEntry {
     pub ctime: u32,
     pub ctime_nsec: u32,
@@ -20,6 +21,17 @@ pub struct IndexEntry {
     pub path: String,
     pub stat:Metadata,
 }
+impl Debug for IndexEntry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IndexEntry")
+            .field("path", &self.path)
+            .field("oid", &self.oid)
+            .finish()
+    }
+}
+
+
+
 impl IndexEntry {
     
     pub fn new (pathname:PathBuf,oid:GHash,stat:Metadata) -> Self {
@@ -43,5 +55,29 @@ impl IndexEntry {
     }
     pub fn get_stat(&self) -> Metadata {
         self.stat.clone()
+    }
+
+    pub fn parent_dir(&self) -> Vec<String> {
+        // if the path == /bin/abc/ff/txt
+        // return ["/bin/abc","/bin"]
+        let mut parent = vec![];
+        let pp = PathBuf::from(&self.path);
+        let mut p = pp.parent();
+        while p.is_some() {
+            let pp = PathBuf::from(p.unwrap());
+            if pp.to_str().unwrap() == "" {
+                break;
+            }
+            parent.push(pp);
+            p = p.unwrap().parent();
+        }
+        //reserve the order
+        let rev: Vec<PathBuf> = parent.into_iter().rev().collect();
+        let mut rev_str = vec![];
+        for p in rev {
+            rev_str.push(p.to_str().unwrap().to_string());
+        }
+        rev_str
+
     }
 }

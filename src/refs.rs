@@ -24,10 +24,14 @@ impl Refs {
         let mut head_path = self.path_name.clone();
         head_path.push("HEAD");
         // file exists or not
-        if !head_path.exists() {
+        // if !head_path.exists() {
+        //     return None;
+        // }
+        // in case of file not head is empty
+        let content = std::fs::read_to_string(head_path).unwrap();
+        if content.is_empty() {
             return None;
         }
-        let content = std::fs::read_to_string(head_path).unwrap();
         Some(content)
     }
 }

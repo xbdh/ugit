@@ -17,28 +17,33 @@ fn main() {
     let cmd = Cmd::parse();
     match cmd.sub_cmd {
         Command::Init(init_cmd) => {
-            let pwd_path = std::env::current_dir().unwrap();
-            let root_path = match init_cmd.path {
-                Some(path) => pwd_path.join(path),
-                None => pwd_path,
-            };
+            // let pwd_path = std::env::current_dir().unwrap();
+            // let root_path = match init_cmd.path {
+            //     Some(path) => pwd_path.join(path),
+            //     None => pwd_path,
+            // };
+            // for  test
+            let root_path = PathBuf::from("/home/rain/rust/abcd");
             let git_path = root_path.join(".git");
             let obj_path = git_path.join("objects");
             let index_path = git_path.join("index");
+            let HEAD_path = git_path.join("HEAD");
             let refs_path = git_path.join("refs");
 
-            let workspace = Workspace::new(root_path.clone());
-            let database = Database::new(obj_path.clone());
-
+            fs::create_dir_all(&git_path).unwrap();
             fs::create_dir_all(&obj_path).unwrap();
             fs::create_dir_all(&refs_path).unwrap();
+            // create index file
+            fs::File::create(&index_path).unwrap();
+            // create HEAD file
+            fs::File::create(&HEAD_path).unwrap();
             println!("init a repo in {:?}", root_path);
         }
         Command::Add(add_cmd) => {
-            println!("add cmd :Args: {:?}", add_cmd);
-            let root_path = std::env::current_dir().unwrap();
-            let root_path = root_path.join("abcd");
-
+            // println!("add cmd :Args: {:?}", add_cmd);
+            // let root_path = std::env::current_dir().unwrap();
+            // let root_path = root_path.join("abcd");
+            let root_path = PathBuf::from("/home/rain/rust/abcd");
             let git_path = root_path.join(".git");
             let obj_path = git_path.join("objects");
             let index_path = git_path.join("index");
@@ -62,13 +67,25 @@ fn main() {
                     index.add(file_path.clone(), bhash,file_stat);
                 }
             }
+
+            let index_entrys=index.clone().index_entrys;
+            let keys=index.clone().keys;
+            let parent=index.clone().parent;
+            println!("parent: {:?}", parent);
+            println!("index_entrys: {:?}", index_entrys);
+            println!("keys: {:?}", keys);
+
             index.write_updates();
+
         }
 
         Command::Commit(commit_cmd) => {
             let message = commit_cmd.message;
-            let root_path = std::env::current_dir().unwrap();
-            let root_path = root_path.join("abcd");
+            // let root_path = std::env::current_dir().unwrap();
+            // let root_path = root_path.join("abcd");
+
+            // for test
+            let root_path = PathBuf::from("/home/rain/rust/abcd");
 
             println!("commit in {:?}", root_path);
             let git_path = root_path.join(".git");
