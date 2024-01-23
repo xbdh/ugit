@@ -13,6 +13,7 @@ impl Workspace {
     // fn ignore() -> Vec<PathBuf> {
     //     vec![".git".into(), ".".into(), "..".into()]
     // }
+    // todo: file or dir not exists. check if file is readable
     pub fn list_files(&self,file_or_dir:PathBuf) -> Vec<PathBuf> {
 
         let mut dir_entrys = vec![];

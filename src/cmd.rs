@@ -8,7 +8,6 @@ use std::path::PathBuf;
     author = "rain",
     about = "git build in Rust"
 )]
-
 pub struct Cmd {
     #[clap(subcommand)]
     pub sub_cmd: Command,
@@ -40,6 +39,8 @@ pub struct InitCmd {
 pub struct AddCmd {
     #[clap(help = "path to add file")]
     pub path: Vec<PathBuf>,
+    #[clap(short='A', long)] // todo: -A
+    pub all: bool,
 }
 #[derive(Args, Debug)]
 pub struct CommitCmd {

@@ -1,6 +1,8 @@
 pub mod blob;
 pub mod commit;
 pub mod tree;
+pub mod author;
+
 
 use sha1::Digest;
 use std::{fs, io};
@@ -10,9 +12,12 @@ use std::path::PathBuf;
 use flate2::Compression;
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
+use tracing::info;
+use crate::database::author::Author;
 use crate::database::blob::Blob;
 use crate::database::commit::GCommit;
 use crate::database::tree::Tree;
+use crate::entry::Entry;
 
 pub type GHash = String;
 pub struct Database {
@@ -38,8 +43,6 @@ impl Database {
         hasher.update(content.clone());
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
-        println!("store blob hash: {}", hash);
-
         blob.set_object_id(hash.clone());
 
         self.write_object(&hash, &content);
@@ -62,8 +65,6 @@ impl Database {
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
 
-        println!("store tree hash: {}", hash);
-
         tree.set_object_id(hash.clone());
         self.write_object(&hash, &vv);
         hash
@@ -80,7 +81,7 @@ impl Database {
         hasher.update(content.clone());
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
-        println!("store commit hash: {}", hash);
+
         self.write_object(&hash, &content);
         hash
     }
@@ -121,4 +122,20 @@ pub fn decompress(data: &[u8]) -> io::Result<Vec<u8>> {
     let mut decompressed = Vec::new();
     decoder.read_to_end(&mut decompressed)?;
     Ok(decompressed)
+}
+
+impl Database {
+    pub fn new_blob( data: String) -> Blob {
+        Blob::new(data)
+    }
+    pub fn new_tree(entrys: Vec<Entry>) -> Tree {
+        Tree::new(entrys)
+    }
+    pub fn new_author( name: &str, email: &str) -> author::Author {
+        Author::new(name, email)
+    }
+
+    pub fn new_commit( parent_id: Option<GHash>, tree_id: GHash, author: Author, message: &str) -> GCommit {
+        GCommit::new(parent_id, tree_id, author, message)
+    }
 }

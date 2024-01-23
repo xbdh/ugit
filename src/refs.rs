@@ -16,17 +16,13 @@ impl Refs {
     // }
     pub fn update_head(&self, object_id: &str) {
         let mut head_path = self.path_name.clone();
-        head_path.push("HEAD");
+        //head_path.push("HEAD");
         std::fs::write(head_path, object_id).unwrap();
     }
 
     pub fn read_head(&self) -> Option<String> {
         let mut head_path = self.path_name.clone();
-        head_path.push("HEAD");
-        // file exists or not
-        // if !head_path.exists() {
-        //     return None;
-        // }
+        //head_path.push("HEAD");
         // in case of file not head is empty
         let content = std::fs::read_to_string(head_path).unwrap();
         if content.is_empty() {
