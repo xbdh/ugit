@@ -5,19 +5,26 @@ pub fn write_green(text :&str)  {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     stdout.set_color(ColorSpec::new().set_fg(Some(Color::Green)));
     writeln!(&mut stdout, "{}", text).unwrap();
+    stdout.reset().unwrap();
 }
 
 pub fn write_red(text :&str)  {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     stdout.set_color(ColorSpec::new().set_fg(Some(Color::Red)));
     writeln!(&mut stdout, "{}", text).unwrap();
+    stdout.reset().unwrap();
 }
 pub fn write_bule(text :&str)  {
     let mut stdout = StandardStream::stdout(ColorChoice::Always);
     stdout.set_color(ColorSpec::new().set_fg(Some(Color::Blue)));
     writeln!(&mut stdout, "{}", text).unwrap();
+    stdout.reset().unwrap();
 }
 
 pub fn write_black(text :&str)  {
-    println!("{}", text);
+
+    let mut stdout = StandardStream::stdout(ColorChoice::Always);
+    stdout.set_color(ColorSpec::new().set_fg(Some(Color::Black)));
+    writeln!(&mut stdout, "{}", text).unwrap();
+    stdout.reset().unwrap();
 }

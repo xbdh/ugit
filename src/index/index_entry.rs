@@ -19,7 +19,6 @@ pub struct IndexEntry {
     pub file_size: u32,
     pub oid: String,
     pub path: String,
-    pub stat:Metadata,
 }
 impl Debug for IndexEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -33,9 +32,44 @@ impl Debug for IndexEntry {
 
 
 impl IndexEntry {
-    
-    pub fn new (pathname:PathBuf,oid:GHash,stat:Metadata) -> Self {
-        
+    // all fields are in paramto  build a index entry
+   pub fn new_all_fields(
+        ctime: u32,
+        ctime_nsec: u32,
+        mtime: u32,
+        mtime_nsec: u32,
+        dev: u32,
+        ino: u32,
+        mode: u32,
+        uid: u32,
+        gid: u32,
+        file_size: u32,
+        oid: String,
+        path: String,
+    ) -> Self {
+        Self {
+            ctime,
+            ctime_nsec,
+            mtime,
+            mtime_nsec,
+            dev,
+            ino,
+            mode,
+            uid,
+            gid,
+            file_size,
+            oid,
+            path,
+        }
+    }
+
+    pub fn new(
+
+        path: PathBuf,
+
+        oid: String,
+        stat: Metadata,
+    ) -> Self {
         Self {
             ctime: stat.ctime() as u32,
             ctime_nsec: stat.ctime_nsec() as u32,
@@ -43,18 +77,32 @@ impl IndexEntry {
             mtime_nsec: stat.mtime_nsec() as u32,
             dev: stat.dev() as u32,
             ino: stat.ino() as u32,
-            mode: stat.mode(),
-            uid: stat.uid(),
-            gid: stat.gid(),
+            mode: stat.mode() as u32,
+            uid: stat.uid() as u32,
+            gid: stat.gid() as u32,
             file_size: stat.size() as u32,
-
-            oid: oid,
-            path: pathname.to_str().unwrap().to_string(),
-            stat:stat,
+            oid,
+            path: path.to_str().unwrap().to_string(),
         }
     }
-    pub fn get_stat(&self) -> Metadata {
-        self.stat.clone()
+
+    pub fn ctime(&self) -> u32 {
+        self.ctime
+    }
+    pub fn ctime_nsec(&self) -> u32 {
+        self.ctime_nsec
+    }
+    pub fn mtime(&self) -> u32 {
+        self.mtime
+    }
+    pub fn mtime_nsec(&self) -> u32 {
+        self.mtime_nsec
+    }
+    pub fn mode(&self) -> u32 {
+        self.mode
+    }
+    pub fn size(&self) -> u32 {
+        self.file_size
     }
 
     pub fn parent_dir(&self) -> Vec<String> {

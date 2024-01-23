@@ -3,13 +3,13 @@ use std::fs;
 use std::path::PathBuf;
 
 use tracing::{debug, error, info, instrument, trace, warn};
-use ugit::cmd::{Cmd, Command};
+use ugit::cli::{Cli, Command};
 use ugit::database::commit::GCommit;
 use ugit::database::Database;
 use ugit::database::tree::Tree;
 use ugit::entry::Entry;
 use ugit::repo::Repo;
-use ugit::util;
+use ugit::{cmd, util};
 
 
 fn main() {
@@ -18,7 +18,7 @@ fn main() {
         .pretty()
         //.with_thread_names(true)
         .init();
-    let cmd = Cmd::parse();
+    let cmd = Cli::parse();
     match cmd.sub_cmd {
         Command::Init(init_cmd) => {
             // let pwd_path = std::env::current_dir().unwrap();
@@ -107,7 +107,7 @@ fn main() {
             for (_, index_entry) in index_entrys.iter() {
                 let file_path = PathBuf::from(index_entry.path.clone());
                 let bhash = index_entry.oid.clone();
-                let stat = index_entry.get_stat();
+                let stat = workspace.stat_file(&file_path);
 
                 let entry=Entry::new(file_path, &bhash, stat);
                 entrys.push(entry);
@@ -149,6 +149,10 @@ fn main() {
                 }
             }
             info!("commit hash is : {:?}", commit_hash);
+        }
+        Command::Status=>{
+            cmd::status::run()
+
         }
     }
 }

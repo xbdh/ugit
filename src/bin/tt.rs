@@ -1,10 +1,30 @@
 use std::fs;
+use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 fn main() {
-    let root_path = "abc"; // 替换为你的目录路径
-    visit_dirs(Path::new(root_path), 0).expect("Failed to visit directories");
+
+        let metadata = fs::metadata("/home/rain/rust/abcd/abc").unwrap();
+
+        println!("{:?}", metadata.ctime());
+        println!("{:?}", metadata.ctime_nsec());
+        println!("{:?}", metadata.mtime());
+        println!("{:?}", metadata.mtime_nsec());
+        if let Ok(time) = metadata.modified() {
+            println!("{time:?}");
+        } else {
+            println!("Not supported on this platform");
+        }
+   let i:u32= 1706014908;
+    let j:u64= 1706014908;
+    let i=j as u32;
+    println!("{:?}",i);
+
+
+//SystemTime { tv_sec: 1706014908, tv_nsec: 926637927 }
 }
+
+
 
 fn visit_dirs(dir: &Path, level: usize) -> std::io::Result<()> {
     if dir.is_dir() {

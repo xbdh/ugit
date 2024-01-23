@@ -8,7 +8,7 @@ use std::path::PathBuf;
     author = "rain",
     about = "git build in Rust"
 )]
-pub struct Cmd {
+pub struct Cli {
     #[clap(subcommand)]
     pub sub_cmd: Command,
     // pub name: Option<String>,
@@ -27,6 +27,7 @@ pub enum Command {
 
     #[clap(about = "commit a file")]
     Commit(CommitCmd),
+    Status,
 }
 #[derive(Args, Debug)]
 pub struct InitCmd {

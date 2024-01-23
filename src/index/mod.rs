@@ -252,7 +252,6 @@ impl Index {
                 file_size,
                 oid: hex::encode(oid),
                 path: String::from_utf8(path).unwrap(),
-                stat:std::fs::metadata(self.pathname.clone()).unwrap(),
             };
 
 
@@ -285,6 +284,16 @@ impl Index {
         self.parent = parent.clone();
         self.keys = keys.clone();
         index_entrys
+    }
+
+    pub fn tracked(&self, pathname: &PathBuf) -> bool {
+        if self.index_entrys.is_empty() {
+            return false;
+        }
+        if self.index_entrys.contains_key(pathname.to_str().unwrap()) {
+            return true;
+        }
+       false
     }
 
 }
