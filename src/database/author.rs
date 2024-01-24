@@ -1,5 +1,8 @@
+use std::fmt::Display;
+use std::str::FromStr;
 use chrono::{DateTime, Local};
 
+#[derive(Debug, Clone,Default)]
 pub struct Author {
     name: String,
     email: String,
@@ -25,4 +28,24 @@ impl Author {
         v.extend_from_slice(timestamp.to_string().as_bytes());
         v
     }
+
 }
+
+impl From<&str> for Author {
+    fn from(v: &str) -> Self {
+       // v is "author rain <1344535251@qq.com> 1706109487 +0800",
+        let v: Vec<&str> = v.split(' ').collect();
+        let mut email = v[2].to_string();
+        // remmove < and > from email
+        email.remove(0);
+        email.remove(email.len() - 1);
+
+        Self {
+            name: v[1].to_string(),
+            // remove < and >
+
+            email,
+        }
+    }
+}
+

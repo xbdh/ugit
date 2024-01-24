@@ -27,6 +27,13 @@ impl Blob {
         &self.object_id
     }
 }
-
+impl From<&str> for Blob {
+    fn from(v: &str) -> Self {
+        Self {
+            data: v.to_string(),
+            object_id: "".to_string(),
+        }
+    }
+}
 // 压缩数据
 

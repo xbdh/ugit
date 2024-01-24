@@ -5,15 +5,13 @@ use std::path::PathBuf;
 use tracing::{debug, error, info, instrument, trace, warn};
 use ugit::cli::{Cli, Command};
 use ugit::database::commit::GCommit;
-use ugit::database::Database;
 use ugit::database::tree::Tree;
+use ugit::database::Database;
 use ugit::entry::Entry;
 use ugit::repo::Repo;
 use ugit::{cmd, util};
 
-
 fn main() {
-
     tracing_subscriber::fmt()
         .pretty()
         //.with_thread_names(true)
@@ -41,13 +39,17 @@ fn main() {
             fs::File::create(&index_path).unwrap();
             // create HEAD file
             fs::File::create(&HEAD_path).unwrap();
-            let text=format!("Initialized empty Git repository in {:?}", git_path.to_str().unwrap());
+            let text = format!(
+                "Initialized empty Git repository in {:?}",
+                git_path.to_str().unwrap()
+            );
             util::write_bule(text.as_str());
-            info!("Initialized empty Git repository in {:?}", git_path.to_str().unwrap());
-
+            info!(
+                "Initialized empty Git repository in {:?}",
+                git_path.to_str().unwrap()
+            );
         }
         Command::Add(add_cmd) => {
-
             info!("add cmd :Args: {:?}", add_cmd);
             // println!("add cmd :Args: {:?}", add_cmd);
             // let root_path = std::env::current_dir().unwrap();
@@ -60,27 +62,25 @@ fn main() {
             let database = repo.database();
             let mut index = repo.index();
 
-
-            let sbc=index.load();
+            let sbc = index.load();
             info!("loaded data from index : {:?}", sbc);
 
             for path in add_cmd.path.iter() {
-                let file_list=workspace.list_files(path.clone());
+                let file_list = workspace.list_files(path.clone());
                 for file_path in file_list.iter() {
-                    let file_data=workspace.read_file(file_path);
-                    let file_stat=workspace.stat_file(file_path);
+                    let file_data = workspace.read_file(file_path);
+                    let file_stat = workspace.stat_file(file_path);
 
-                    let mut blob=Database::new_blob(file_data);
+                    let mut blob = Database::new_blob(file_data);
 
-                    let bhash=database.store_blob(&mut blob);
-                    info!("store blob file {:?}, hash {:?}",file_path.clone(), blob);
-                    index.add(file_path.clone(), bhash,file_stat);
+                    let bhash = database.store_blob(&mut blob);
+                    info!("store blob file {:?}, hash {:?}", file_path.clone(), blob);
+                    index.add(file_path.clone(), bhash, file_stat);
                 }
             }
             info!("after add entry ,entrys is : {:?}", index.keys);
 
             index.write_updates();
-
         }
 
         Command::Commit(commit_cmd) => {
@@ -109,10 +109,9 @@ fn main() {
                 let bhash = index_entry.oid.clone();
                 let stat = workspace.stat_file(&file_path);
 
-                let entry=Entry::new(file_path, &bhash, stat);
+                let entry = Entry::new(file_path, &bhash, Some(stat));
                 entrys.push(entry);
             }
-
 
             let mut tree = Database::new_tree(entrys);
             //let ff=database.store_tree;
@@ -130,8 +129,7 @@ fn main() {
             let author = Database::new_author(name, email);
             let parent_id = refs.read_head();
 
-            let commit = GCommit::new(parent_id,tree_hash.to_string(), author, message.as_str());
-
+            let commit = GCommit::new(parent_id, tree_hash.to_string(), author, message.as_str());
 
             let pre_head = refs.read_head();
             let commit_hash = database.store_commit(commit);
@@ -139,21 +137,16 @@ fn main() {
 
             match pre_head {
                 Some(pre_head) => {
-                    let text=format!("[main {}] {}",&commit_hash[0..6],message);
+                    let text = format!("[main {}] {}", &commit_hash[0..6], message);
                     util::write_bule(text.as_str());
                 }
                 None => {
-                    let text=format!("[main (root-commit) {}] {}",&commit_hash[0..6],message);
+                    let text = format!("[main (root-commit) {}] {}", &commit_hash[0..6], message);
                     util::write_bule(text.as_str());
-
                 }
             }
             info!("commit hash is : {:?}", commit_hash);
         }
-        Command::Status=>{
-            cmd::status::run()
-
-        }
+        Command::Status => cmd::status::run(),
     }
 }
-

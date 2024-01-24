@@ -7,9 +7,18 @@ use crate::database::GHash;
 
 #[derive(Clone)]
 pub struct Entry {
-    filename: PathBuf,
-    object_id: GHash,
-    stat: Metadata,
+    pub(crate) filename: PathBuf,
+    pub(crate) object_id: GHash,
+    pub(crate) stat: Option<Metadata>, // 对于tree.rs的From trait 路径不完整，无法获取，而且也没必要。
+}
+impl Default for Entry {
+    fn default() -> Self {
+        Self {
+            filename: PathBuf::new(),
+            object_id: "".to_string(),
+            stat: None,
+        }
+    }
 }
 
 impl Debug for Entry {
@@ -21,7 +30,7 @@ impl Debug for Entry {
     }
 }
 impl Entry {
-    pub fn new(filename: PathBuf, object_id: &str, stat: Metadata) -> Self {
+    pub fn new(filename: PathBuf, object_id: &str, stat: Option<Metadata>) -> Self {
         Self {
             filename,
             object_id: object_id.to_string(),
@@ -36,15 +45,21 @@ impl Entry {
     }
 
     pub fn get_mode(&self) -> &str {
+       if let Some(stat) = &self.stat {
+           if stat.is_dir() {
+               return "40000";
+           }
+           if stat.permissions().mode() & 0o100 == 0o100 {
+               "100755"
+           }else{
+               "100644"
+           }
+       }
+         else {
+             "100644" // 好像不会走到这里
+         }
         // is executable
-        if self.stat.is_dir() {
-            return "40000";
-        }
-        if self.stat.permissions().mode() & 0o100 == 0o100 {
-             "100755"
-        }else{
-            "100644"
-        }
+
     }
 
     pub fn parent_dir(&self) -> Vec<PathBuf> {
@@ -70,5 +85,9 @@ impl Entry {
         let p = self.filename.file_name().unwrap();
         let pp = PathBuf::from(p);
         pp
+    }
+
+    pub fn set_object_id(&mut self, object_id: GHash) {
+        self.object_id = object_id;
     }
 }

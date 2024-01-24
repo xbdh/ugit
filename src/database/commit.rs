@@ -2,6 +2,7 @@ use crate::database::author::Author;
 use crate::database::GHash;
 
 
+#[derive(Debug, Clone,Default)]
 pub struct GCommit {
     oject_id: GHash,
     parent_id: Option<GHash>,
@@ -61,4 +62,43 @@ impl GCommit {
     pub fn len(&self) -> usize {
         self.to_string().len()
     }
+}
+
+impl From<&str> for GCommit {
+    fn from(v: &str) -> Self {
+        //  len==7 or6
+        //  ["tree fe002358f136fdcc8fbfd7a8cdc687fee7ee6429",
+        // "author rain <1344535251@qq.com> 1706109487 +0800",
+        // "committer rain <1344535251@qq.com> 1706109487 +0800",
+        // "",
+        // "test for st",
+        // ""]
+        let v: Vec<&str> = v.split('\n').collect();
+        //println!("v: {:?}", v);
+        if v.len()==7{
+            let tree_id = v[0].split(' ').collect::<Vec<&str>>()[1].to_string();
+            let parent_id = v[1].split(' ').collect::<Vec<&str>>()[1].to_string();
+            let author = Author::from(v[2]);
+            let message = v[5].to_string();
+            Self {
+                parent_id: Some(parent_id),
+                oject_id: "".to_string(),
+                tree_id,
+                author,
+                message,
+            }
+        }else{
+                let tree_id = v[0].split(' ').collect::<Vec<&str>>()[1].to_string();
+                let author = Author::from(v[1]);
+                let message = v[4].to_string();
+                Self {
+                    parent_id: None,
+                    oject_id: "".to_string(),
+                    tree_id,
+                    author,
+                    message,
+                }
+            }
+    }
+
 }

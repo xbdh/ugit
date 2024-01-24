@@ -18,6 +18,12 @@ pub fn run() {
     let database = repo.database();
     let mut index = repo.index();
     let refs = repo.refs();
+    let head = refs.read_head();
+    println!("head: {:?}", head);
+    let commit = database.load_commit(head.unwrap().as_str());
+    println!("commit: {:?}", commit);
+    let tree = database.load_tree(commit.tree_id.as_str());
+    println!("tree: {:?}", tree);
 
     let index_entrys = index.load();
 
@@ -41,22 +47,16 @@ pub fn run() {
         let file_path = PathBuf::from(index_entry.path.clone());
 
         let workspace_entry=workspace_entrys.iter().find(|&x| x.to_str().unwrap()==path);
-        match workspace_entry {
-            Some(workspace_entry)=>{
-                let workspace_entry_stat=workspace.stat_file(workspace_entry);
-                println!("wctime: {},mtime: {},size: {},mode: {}",workspace_entry_stat.ctime(),workspace_entry_stat.mtime(),workspace_entry_stat.size(),workspace_entry_stat.mode());
-                println!("ictime: {},mtime: {},size: {},mode: {}",index_entry.ctime(),index_entry.mtime(),index_entry.size(),index_entry.mode());
-                if workspace_entry_stat.mtime() as u32!= index_entry.mtime() ||
-                    workspace_entry_stat.ctime() as u32 != index_entry.ctime() ||
-                    workspace_entry_stat.size() as u32 != index_entry.size()||
-                    workspace_entry_stat.mode() != index_entry.mode() {
+        if let Some(workspace_entry) = workspace_entry {
+        let workspace_entry_stat=workspace.stat_file(workspace_entry);
+        // println!("wctime: {},mtime: {},size: {},mode: {}",workspace_entry_stat.ctime(),workspace_entry_stat.mtime(),workspace_entry_stat.size(),workspace_entry_stat.mode());
+        // println!("ictime: {},mtime: {},size: {},mode: {}",index_entry.ctime(),index_entry.mtime(),index_entry.size(),index_entry.mode());
+        if workspace_entry_stat.mtime() as u32!= index_entry.mtime() ||
+            workspace_entry_stat.ctime() as u32 != index_entry.ctime() ||
+            workspace_entry_stat.size() as u32 != index_entry.size()||
+            workspace_entry_stat.mode() != index_entry.mode() {
 
-                        modified_files.push(workspace_entry.clone());
-                    }
-                }
-
-            None=>{
-
+                modified_files.push(workspace_entry.clone());
             }
         }
     }
@@ -64,24 +64,20 @@ pub fn run() {
     for workspace_entry in workspace_entrys.iter(){
         let file_path = PathBuf::from(workspace_entry.clone());
         let index_entry=index_entrys.iter().find(|&x| x.0==file_path.to_str().unwrap());
-        match index_entry {
-            Some(_)=>{
-            }
-            None=>{
-                untracked_files.push(workspace_entry.clone());
-            }
+        if index_entry.is_none(){
+            untracked_files.push(workspace_entry.clone());
         }
     }
     println!("modified_files: {:?}", modified_files);
     println!("untracked_files: {:?}", untracked_files);
 
 
-    if modified_files.len()==0 && untracked_files.len()==0{
+    if modified_files.is_empty() && untracked_files.is_empty(){
         util::write_black("nothing to commit, working tree clean");
         return;
     }
 
-    if modified_files.len()>0{
+    if !modified_files.is_empty(){
         util::write_black("Changes to be committed:");
         util::write_black("  (use \"git restore --staged <file>...\" to unstage)");
         for c in modified_files.iter(){
@@ -89,7 +85,7 @@ pub fn run() {
             util::write_red(text.as_str());
         }
     }
-   if untracked_files.len()>0 {
+   if !untracked_files.is_empty() {
        util::write_black("Untracked files:");
        util::write_black("  (use \"git add <file>...\" to update what will be committed)");
        for uf in untracked_files.iter() {

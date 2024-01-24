@@ -1,4 +1,6 @@
-
+use std::fs::Metadata;
+use std::io;
+use std::io::{BufRead, Read};
 use crate::entry::Entry;
 use hex;
 use std::path::PathBuf;
@@ -9,10 +11,10 @@ use crate::database::GHash;
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,Default)]
 pub struct Tree {
-    entries: IndexMap<PathBuf, TreeEntry>,
-    object_id: GHash,
+    pub(crate) entries: IndexMap<PathBuf, TreeEntry>,
+    pub(crate) object_id: GHash,
 }
 
 // 定义 TreeEntry 枚举，可以是一个 Entry 或另一个 Tree
@@ -55,14 +57,8 @@ impl Tree {
 
     pub fn to_string(&self) -> Vec<u8> {
         let mut content = vec![];
-        //order by filename
-        let mut order_entries = vec![];
-        for entry in self.entries.iter() {
-            order_entries.push(entry);
-        }
-        //order_entries.sort_by(|a, b| a.get_filename().cmp(b.get_filename()));
 
-        for (path, entry) in order_entries.iter() {
+        for (path, entry) in self.entries.iter() {
             match entry {
                 TreeEntry::Entry(entry) => {
                     content.extend_from_slice(entry.get_mode().as_bytes());
@@ -167,3 +163,91 @@ fn add_entry(entriesmp: &mut IndexMap<PathBuf, TreeEntry>, parent: Vec<PathBuf>,
         //这样 p 为a a/b a/b/c
     }
 }
+
+// impl From<&str> for Tree{
+//     fn from(v: &str) -> Self {
+//          let mut entries_map = IndexMap::new();
+//         //tree with hash:fe002358f136fdcc8fbfd7a8cdc687fee7ee6429
+//         // data is : "100644 abc\0�⛲��CK�)�wZ���S�100644 abcdefg\0�⛲��CK�)�wZ���S�"
+//         // 如何解析这个字符串100644 abc\0�⛲��CK�)�wZ���S� 为一组？
+//
+//        let mut tree = Tree {
+//             entries: IndexMap::new(),
+//             object_id: "".to_string(),
+//         };
+//         println!("v len is : {:?}", v.len());
+//         let mut cursor = io::Cursor::new(v.as_bytes());
+//         let mut buf = vec![];
+//         let mut i=0;
+//
+//         println!("init position is : {:?}", cursor.position());
+//         loop {
+//             println!("begin  position is : {:?}", cursor.position());
+//             if i>=v.len(){
+//                 break;
+//             }
+//             cursor.read_until(b' ', &mut buf).unwrap();
+//             println!("read mode position is : {:?}", cursor.position());
+//             let mode = String::from_utf8_lossy(&buf.clone()).to_string();
+//             i+=mode.len();
+//             let mode = mode.trim_end_matches(' ');
+//             println!("mode is : {:?}", mode);
+//             buf.clear();
+//             if mode =="40000"{
+//                 //tree
+//                 cursor.read_until(b'\0', &mut buf).unwrap();
+//                 println!("read path position is : {:?}", cursor.position());
+//                 let path = String::from_utf8(buf.clone()).unwrap();
+//                 i+=path.len();
+//                 buf.clear();
+//                 let path = path.trim_end_matches('\0');
+//                 println!("path is : {:?}", path);
+//                 let path = PathBuf::from(path);
+//                 // read 20 byte
+//                 let mut hash = vec![0; 20];
+//                 cursor.read_exact(&mut hash).unwrap();
+//                 i+=20;
+//
+//                 // construct tree
+//                 let tree_entry = TreeEntry::SubTree(Tree {
+//                     entries: IndexMap::new(),
+//                     object_id: hex::encode(hash),
+//                 });
+//                 entries_map.insert(path, tree_entry);
+//             }else {
+//
+//                 //entry
+//                 cursor.read_until(b'\0', &mut buf).unwrap();
+//                 println!("read path position is : {:?}", cursor.position());
+//                 let path = String::from_utf8(buf.clone()).unwrap();
+//                 i+=path.len();
+//                 buf.clear();
+//                 let path = path.trim_end_matches('\0');
+//                 let path = PathBuf::from(path);
+//                 println!("path is : {:?}", path);
+//                 // read 20 byte
+//                 let mut hash = vec![0; 20];
+//                 println!("position before is : {:?}", cursor.position());
+//                 cursor.read_exact(&mut hash).unwrap();
+//
+//                 //
+//                 println!("hash is : {:?}", hex::encode(hash.clone()));
+//                 hash.clear();
+//                 i+=20;
+//                 println!("position is after : {:?}", cursor.position());
+//
+//                 // construct entry
+//                 let tree_entry = TreeEntry::Entry(Entry {
+//                     filename: path.clone(),
+//                     object_id: hex::encode(hash),
+//                     stat: None,
+//                 });
+//                 entries_map.insert(path, tree_entry);
+//             }
+//         }
+//
+//
+//         tree.entries=entries_map;
+//         tree
+//     }
+// }
