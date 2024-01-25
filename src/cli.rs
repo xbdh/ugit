@@ -28,6 +28,9 @@ pub enum Command {
     #[clap(about = "commit a file")]
     Commit(CommitCmd),
     Status,
+
+    #[clap(about = "commit a file")]
+    Diff(DiffCmd),
 }
 #[derive(Args, Debug)]
 pub struct InitCmd {
@@ -49,4 +52,9 @@ pub struct CommitCmd {
    #[clap(help = "commit message")]
    #[clap(short , long)]
     pub message: String,
+}
+#[derive(Args, Debug)]
+pub struct DiffCmd {
+    #[clap(short , long)]
+    pub stage: bool,
 }

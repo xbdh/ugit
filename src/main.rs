@@ -43,7 +43,7 @@ fn main() {
                 "Initialized empty Git repository in {:?}",
                 git_path.to_str().unwrap()
             );
-            util::write_bule(text.as_str());
+            util::write_buleln(text.as_str());
             info!(
                 "Initialized empty Git repository in {:?}",
                 git_path.to_str().unwrap()
@@ -139,15 +139,19 @@ fn main() {
             match pre_head {
                 Some(pre_head) => {
                     let text = format!("[main {}] {}", &commit_hash[0..6], message);
-                    util::write_bule(text.as_str());
+                    util::write_buleln(text.as_str());
                 }
                 None => {
                     let text = format!("[main (root-commit) {}] {}", &commit_hash[0..6], message);
-                    util::write_bule(text.as_str());
+                    util::write_buleln(text.as_str());
                 }
             }
             info!("commit hash is : {:?}", commit_hash);
         }
         Command::Status => cmd::status::run(),
+        Command::Diff(diff_cmd) => {
+             info!("diff cmd :Args: {:?}", diff_cmd);
+            cmd::diff::run(diff_cmd.stage)
+        }
     }
 }

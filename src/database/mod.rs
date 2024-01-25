@@ -32,6 +32,22 @@ impl Database {
     pub fn new(path_name: PathBuf) -> Self {
         Self { path_name }
     }
+    
+    pub fn hash_object(&self, data: &str, type_: &str) -> GHash {
+        let mut content = vec![];
+        content.extend_from_slice(type_.as_bytes());
+        content.push(b' ');
+        content.extend_from_slice(data.len().to_string().as_bytes());
+        content.push(b'\0');
+        content.extend_from_slice(data.as_bytes());
+
+        let mut hasher = sha1::Sha1::new();
+        hasher.update(content.clone());
+        let hash = hasher.finalize();
+        let hash = format!("{:x}", hash);
+        self.write_object(&hash, &content);
+        hash
+    }
 
     pub fn store_blob(&self, blob: &mut Blob) -> GHash {
         //let content = format!("{} {}\0{}", blob.type_(), blob.data.len(), blob.data);

@@ -19,6 +19,10 @@ path = "src/bin/tt.rs"
 [[bin]]
 name = "t"
 path = "src/bin/t.rs"
+[[bin]]
+name= "diff"
+path = "src/bin/diff.rs"
+
 
 [dependencies]
 chrono = "0.4.31"
@@ -30,3 +34,4 @@ indexmap = "2.1.0"
 tracing = "0.1.40"
 tracing-subscriber ={version = "0.2.19"}
 termcolor = "1.4.1"
+similar = "2.4.0"

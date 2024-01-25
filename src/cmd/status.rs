@@ -10,7 +10,7 @@ use crate::util;
 
 
 
-enum St {
+pub enum St {
     WorkspaceModified,
     WorkspaceAdded,
     WorkspaceDeleted,
@@ -36,20 +36,7 @@ impl Debug for St {
     }
 }
 
-impl Display for St {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            St::WorkspaceModified => write!(f, "WorkspaceModified"),
-            St::WorkspaceAdded => write!(f, "WorkspaceAdded"),
-            St::WorkspaceDeleted => write!(f, "WorkspaceDeleted"),
-            St::IndexModified => write!(f, "IndexModified"),
-            St::IndexDeleted => write!(f, "IndexDeleted"),
-            St::IndexAdded => write!(f, "IndexAdded"),
-            St::UpdatedButUnmerged => write!(f, "UpdatedButUnmerged"),
-            St::Untracked => write!(f, "Untracked"),
-        }
-    }
-}
+
 
 pub fn run() {
     // let root_path = std::env::current_dir().unwrap();
@@ -68,7 +55,7 @@ pub fn run() {
     //println!("head: {:?}", head);
     let mut  tree_entrys_list:IndexMap<PathBuf,Entry>=IndexMap::new();
     if head.is_none(){
-       util::write_black("No commits yet");
+       util::write_blackln("No commits yet");
     }else{
         let commit = database.load_commit(head.unwrap().as_str());
         let tree = database.load_tree(commit.tree_id.as_str(),PathBuf::new());
@@ -182,37 +169,37 @@ pub fn run() {
     // }
 
     if changed.is_empty() && untracked_files.is_empty(){
-        util::write_black("nothing to commit, working tree clean");
+        util::write_blackln("nothing to commit, working tree clean");
         return;
     }
     if !index_chanages.is_empty(){
         println!("\n");
-        util::write_black("Changes to be committed:");
+        util::write_blackln("Changes to be committed:");
         //util::write_black("  (use \"git restore --staged <file>...\" to unstage)");
         for (path,c )in index_chanages.iter() {
             let text=format!("\t{:?}:   {}",c,path.to_str().unwrap());
-            util::write_green(text.as_str());
+            util::write_greenln(text.as_str());
         }
     }
 
     if !workspace_chanages.is_empty(){
         println!("\n");
-        util::write_black("Changes not staged for committed:");
+        util::write_blackln("Changes not staged for committed:");
         //util::write_black("  (use \"git restore --staged <file>...\" to unstage)");
         for (path,c )in workspace_chanages.iter() {
             let text=format!("\t{:?}:   {}",c,path.to_str().unwrap());
-            util::write_red(text.as_str());
+            util::write_redln(text.as_str());
         }
     }
 
    if !untracked_files.is_empty() {
        println!("\n");
-       util::write_black("Untracked files:");
+       util::write_blackln("Untracked files:");
 
        //util::write_black("  (use \"git add <file>...\" to update what will be committed)");
        for uf in untracked_files.iter() {
            let text = format!("\t{}", uf.to_str().unwrap());
-           util::write_red(text.as_str());
+           util::write_redln(text.as_str());
        }
 
    }
