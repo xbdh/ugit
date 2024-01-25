@@ -122,6 +122,7 @@ fn main() {
 
             let tree_hash = tree.get_object_id();
             info!("tree hash is : {:?}", tree_hash);
+            info!("tree is : {:?}", tree);
 
             let name = "rain";
             let email = "1344535251@qq.com";

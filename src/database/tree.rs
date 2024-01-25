@@ -13,9 +13,9 @@ use crate::database::GHash;
 
 #[derive(Debug, Clone,Default)]
 pub struct Tree {
-    pub(crate) entries: IndexMap<PathBuf, TreeEntry>,
+    pub(crate) entries: IndexMap<PathBuf, TreeEntry>,//
     pub(crate) object_id: GHash,
-    pub  entries_list: IndexMap<PathBuf,Entry>, // 为了方便遍历，增加一个list
+    pub  entries_list: IndexMap<PathBuf,Entry>, // 为了方便遍历，增加一个list path is relative full path  a/b/c.txt
 }
 
 // 定义 TreeEntry 枚举，可以是一个 Entry 或另一个 Tree
@@ -114,7 +114,7 @@ impl Tree {
         //self.object_id= mytree.object_id.clone();
 
     }
-    
+
     pub fn trverse_with_list<F>(&mut self, c: &F)
     where
         F: for<'a> Fn(&'a mut Tree),

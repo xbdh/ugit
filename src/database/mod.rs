@@ -191,8 +191,8 @@ impl Database {
         commit.set_object_id(hash.to_string());
         commit
     }
-    // only one flat
-    pub  fn load_tree(&self, hash: &str) -> Tree {
+    //
+    pub  fn load_tree(&self, hash: &str,path_init:PathBuf) -> Tree {
         let content = self.read_object(hash);
         println!("tree content: {:?}", content);
         // convert to str
@@ -242,9 +242,13 @@ impl Database {
                 cursor.read_exact(&mut hash).unwrap();
                 i+=20;
                 let tree_oid=hex::encode(hash.clone());
-                let subtree=self.load_tree(tree_oid.as_str());
-                let tree_entry = TreeEntry::SubTree(subtree);
-                entries_map.insert(path, tree_entry);
+                let subtree=self.load_tree(tree_oid.as_str(),path_init.join(path.clone()));
+                let tree_entry = TreeEntry::SubTree(subtree.clone());
+                entries_map.insert(path.clone(), tree_entry);
+                let elist=subtree.entries_list.clone();
+                for (k,v) in elist.iter(){
+                    entries_list_map.insert(k.clone(),v.clone());
+                }
 
             }else {
 
@@ -256,6 +260,7 @@ impl Database {
                 buf.clear();
                 let path = path.trim_end_matches('\0');
                 let path = PathBuf::from(path);
+                println!("++path is : {:?}", path);
 
                 let mut hash = vec![0; 20];
 
@@ -263,10 +268,12 @@ impl Database {
 
                 i+=20;
                 let object_id=hex::encode(hash.clone());
-                let entry=Entry::new(path.clone(),&object_id,None);
+                let entry=Entry::new(path_init.join(path.clone()),&object_id,None);
                 let tree_entry = TreeEntry::Entry(entry.clone());
                 entries_map.insert(path.clone(), tree_entry.clone());
-                entries_list_map.insert(path.clone(), entry.clone());
+
+                entries_list_map.insert(path_init.join(path.clone()), entry.clone());
+               println!("entry is : {:?}", entries_list_map);
 
             }
         }
@@ -279,4 +286,8 @@ impl Database {
 
     }
 }
-
+// eg
+//Tree { entries: {"a": SubTree(Tree { entries: {"b": SubTree(Tree { entries: {"c.txt": Entry(Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" })},
+// object_id: "cf67e9ef3a0fc6d858423fc177f2fbbe985a6f17", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} })},
+// object_id: "624db7b0ba3f4677714c28ff3351a0a6f63306ef", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} })},
+// object_id: "ded3b76a89198e962945b0dca402a64420bceabf", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} }

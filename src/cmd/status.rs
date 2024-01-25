@@ -5,6 +5,7 @@ use crate::entry::Entry;
 use crate::repo::Repo;
 use std::os::unix::fs::MetadataExt;
 use indexmap::IndexMap;
+use tracing::info;
 use crate::util;
 
 
@@ -70,7 +71,8 @@ pub fn run() {
        util::write_black("No commits yet");
     }else{
         let commit = database.load_commit(head.unwrap().as_str());
-        let tree = database.load_tree(commit.tree_id.as_str());
+        let tree = database.load_tree(commit.tree_id.as_str(),PathBuf::new());
+        println!("tree: {:?}", tree);
         tree_entrys_list=tree.entries_list.clone();
     }
 
@@ -83,10 +85,13 @@ pub fn run() {
     let mut workspace_chanages:HashMap<PathBuf,St>=HashMap::new();
     let mut index_chanages:HashMap<PathBuf,St>=HashMap::new();
 
-    println!("index_entrys: {:?}", index_entrys);
-    println!("workspace_entrys: {:?}", workspace_entrys);
-    println!("tree_entrys_list: {:?}", tree_entrys_list);
-
+    info!("index_entrys: {:?}", index_entrys);
+    info!("workspace_entrys: {:?}", workspace_entrys);
+    info!("tree_entrys_list: {:?}", tree_entrys_list);
+    // exapmle after add and commit file:  a/b/c.txt
+    // workspace_entrys: ["a/b/c.txt"]
+    //tree_entrys_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }}
+// index_entrys: {"a/b/c.txt": IndexEntry { path: "a/b/c.txt", oid: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }}
 
     for workspace_entry in workspace_entrys.iter(){
         let file_path = PathBuf::from(workspace_entry.clone());
@@ -164,23 +169,24 @@ pub fn run() {
         }
     }
 
-    println!("changed: {:?}", changed);
-    println!("workspace_chanages: {:?}", workspace_chanages);
-    println!("index_chanages: {:?}", index_chanages);
+    info!("changed: {:?}", changed);
+    info!("workspace_chanages: {:?}", workspace_chanages);
+    info!("index_chanages: {:?}", index_chanages);
 
 
-    if index_entrys.len()==0{
-        util::write_black("\nNo commits yet\n");
-        for workspace_entry in workspace_entrys.iter(){
-            untracked_files.push(workspace_entry.clone());
-        }
-    }
+    // if index_entrys.len()==0{
+    //     util::write_black("\nNo commits yet\n");
+    //     for workspace_entry in workspace_entrys.iter(){
+    //         untracked_files.push(workspace_entry.clone());
+    //     }
+    // }
 
     if changed.is_empty() && untracked_files.is_empty(){
         util::write_black("nothing to commit, working tree clean");
         return;
     }
     if !index_chanages.is_empty(){
+        println!("\n");
         util::write_black("Changes to be committed:");
         //util::write_black("  (use \"git restore --staged <file>...\" to unstage)");
         for (path,c )in index_chanages.iter() {
@@ -188,8 +194,9 @@ pub fn run() {
             util::write_green(text.as_str());
         }
     }
-    println!("\n");
+
     if !workspace_chanages.is_empty(){
+        println!("\n");
         util::write_black("Changes not staged for committed:");
         //util::write_black("  (use \"git restore --staged <file>...\" to unstage)");
         for (path,c )in workspace_chanages.iter() {
@@ -197,8 +204,9 @@ pub fn run() {
             util::write_red(text.as_str());
         }
     }
-    println!("\n");
+
    if !untracked_files.is_empty() {
+       println!("\n");
        util::write_black("Untracked files:");
 
        //util::write_black("  (use \"git add <file>...\" to update what will be committed)");
