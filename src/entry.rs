@@ -10,13 +10,14 @@ pub struct Entry {
     pub(crate) filename: PathBuf,
     pub(crate) object_id: GHash,
     pub(crate) stat: Option<Metadata>, // 对于tree.rs的From trait 路径不完整，无法获取，而且也没必要。
+    //pub mode: Option<String>
 }
 impl Default for Entry {
     fn default() -> Self {
         Self {
             filename: PathBuf::new(),
             object_id: "".to_string(),
-            stat: None,
+            stat: None
         }
     }
 }
@@ -34,7 +35,8 @@ impl Entry {
         Self {
             filename,
             object_id: object_id.to_string(),
-            stat,
+            stat
+           
         }
     }
     pub fn get_filename(&self) -> PathBuf {

@@ -6,6 +6,7 @@ pub mod author;
 
 use sha1::Digest;
 use std::{fs, io};
+use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::{BufRead, Read, Write};
 use std::path::PathBuf;
@@ -19,6 +20,7 @@ use crate::database::author::Author;
 use crate::database::blob::Blob;
 use crate::database::commit::GCommit;
 use crate::database::tree::{Tree, TreeEntry};
+
 use crate::entry::Entry;
 
 pub type GHash = String;
@@ -189,11 +191,13 @@ impl Database {
         commit.set_object_id(hash.to_string());
         commit
     }
+    // only one flat
     pub  fn load_tree(&self, hash: &str) -> Tree {
         let content = self.read_object(hash);
         println!("tree content: {:?}", content);
         // convert to str
         let mut entries_map = IndexMap::new();
+        let mut entries_list_map:IndexMap<PathBuf,Entry> = IndexMap::new();
         //tree with hash:fe002358f136fdcc8fbfd7a8cdc687fee7ee6429
         // data is : "100644 abc\0�⛲��CK�)�wZ���S�100644 abcdefg\0�⛲��CK�)�wZ���S�"
         // 如何解析这个字符串100644 abc\0�⛲��CK�)�wZ���S� 为一组？
@@ -237,10 +241,9 @@ impl Database {
                 let mut hash = vec![0; 20];
                 cursor.read_exact(&mut hash).unwrap();
                 i+=20;
-                let tree_entry = TreeEntry::SubTree(Tree {
-                    entries: IndexMap::new(),
-                    object_id: hex::encode(hash),
-                });
+                let tree_oid=hex::encode(hash.clone());
+                let subtree=self.load_tree(tree_oid.as_str());
+                let tree_entry = TreeEntry::SubTree(subtree);
                 entries_map.insert(path, tree_entry);
 
             }else {
@@ -259,18 +262,18 @@ impl Database {
                 cursor.read_exact(&mut hash).unwrap();
 
                 i+=20;
+                let object_id=hex::encode(hash.clone());
+                let entry=Entry::new(path.clone(),&object_id,None);
+                let tree_entry = TreeEntry::Entry(entry.clone());
+                entries_map.insert(path.clone(), tree_entry.clone());
+                entries_list_map.insert(path.clone(), entry.clone());
 
-                let tree_entry = TreeEntry::Entry(Entry {
-                    filename: path.clone(),
-                    object_id: hex::encode(hash),
-                    stat: None,
-                });
-                entries_map.insert(path, tree_entry);
             }
         }
 
 
         tree.entries=entries_map;
+        tree.entries_list=entries_list_map;
         tree.object_id=hash.to_string();
         tree
 

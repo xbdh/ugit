@@ -15,6 +15,7 @@ use crate::database::GHash;
 pub struct Tree {
     pub(crate) entries: IndexMap<PathBuf, TreeEntry>,
     pub(crate) object_id: GHash,
+    pub  entries_list: IndexMap<PathBuf,Entry>, // 为了方便遍历，增加一个list
 }
 
 // 定义 TreeEntry 枚举，可以是一个 Entry 或另一个 Tree
@@ -37,6 +38,7 @@ impl Tree {
         Self {
             entries,
             object_id: "".to_string(),
+            entries_list: IndexMap::new(),
         }
     }
 
@@ -112,6 +114,32 @@ impl Tree {
         //self.object_id= mytree.object_id.clone();
 
     }
+    
+    pub fn trverse_with_list<F>(&mut self, c: &F)
+    where
+        F: for<'a> Fn(&'a mut Tree),
+    {
+        // build a empty tree
+        // let mut mytree = Tree {
+        //     entries: IndexMap::new(),
+        //     object_id: "".to_string(),
+        // };
+        for (path, tree_entry) in self.entries.iter_mut() {
+            match tree_entry {
+                //nothing to do
+                TreeEntry::SubTree(tree) => {
+                    //mytree=tree.clone();
+                    //mytree = tree.clone();
+                   tree.traverse(c);
+                }
+                TreeEntry::Entry(entry) => {}
+            }
+        }
+
+        c(self);
+        //self.object_id= mytree.object_id.clone();
+
+    }
 }
 
 fn add_entry(entriesmp: &mut IndexMap<PathBuf, TreeEntry>, parent: Vec<PathBuf>, entry: Entry) {
@@ -125,6 +153,7 @@ fn add_entry(entriesmp: &mut IndexMap<PathBuf, TreeEntry>, parent: Vec<PathBuf>,
         let mut tree_temp = Tree {
             entries: IndexMap::new(),
             object_id: "".to_string(),
+            entries_list: IndexMap::new(),
         };
         let tree_entry = entriesmp.get_mut(&p1b);
         match tree_entry {
@@ -163,6 +192,8 @@ fn add_entry(entriesmp: &mut IndexMap<PathBuf, TreeEntry>, parent: Vec<PathBuf>,
         //这样 p 为a a/b a/b/c
     }
 }
+
+// can not use this utf8eror
 
 // impl From<&str> for Tree{
 //     fn from(v: &str) -> Self {
