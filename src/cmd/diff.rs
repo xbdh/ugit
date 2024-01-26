@@ -4,8 +4,6 @@ use std::path::PathBuf;
 use indexmap::IndexMap;
 use similar::{ChangeTag, TextDiff};
 use tracing::info;
-use tracing_subscriber::fmt::format;
-use crate::database::blob::Blob;
 use crate::entry::Entry;
 use crate::repo::Repo;
 use crate::util;
