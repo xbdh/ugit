@@ -1,21 +1,18 @@
+use crate::entry::Entry;
+use hex;
 use std::fs::Metadata;
 use std::io;
 use std::io::{BufRead, Read};
-use crate::entry::Entry;
-use hex;
 use std::path::PathBuf;
 
-
-use indexmap::IndexMap;
 use crate::database::GHash;
+use indexmap::IndexMap;
 
-
-
-#[derive(Debug, Clone,Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Tree {
-    pub(crate) entries: IndexMap<PathBuf, TreeEntry>,//
+    pub(crate) entries: IndexMap<PathBuf, TreeEntry>, //
     pub(crate) object_id: GHash,
-    pub  entries_list: IndexMap<PathBuf,Entry>, // 为了方便遍历，增加一个list path is relative full path  a/b/c.txt
+    pub entries_list: IndexMap<PathBuf, Entry>, // 为了方便遍历，增加一个list path is relative full path  a/b/c.txt
 }
 
 // 定义 TreeEntry 枚举，可以是一个 Entry 或另一个 Tree
@@ -29,7 +26,12 @@ impl Tree {
     pub fn new(entryslist: Vec<Entry>) -> Self {
         let mut sorted_entrys = entryslist.clone();
         // 不可以直接pathbuf排序
-        sorted_entrys.sort_by(|a, b| a.get_filename().to_str().unwrap().cmp(&b.get_filename().to_str().unwrap()));
+        sorted_entrys.sort_by(|a, b| {
+            a.filename()
+                .to_str()
+                .unwrap()
+                .cmp(&b.filename().to_str().unwrap())
+        });
 
         let mut entries = IndexMap::new();
         for entry in sorted_entrys.iter() {
@@ -63,11 +65,11 @@ impl Tree {
         for (path, entry) in self.entries.iter() {
             match entry {
                 TreeEntry::Entry(entry) => {
-                    content.extend_from_slice(entry.get_mode().as_bytes());
+                    content.extend_from_slice(entry.mode().as_bytes());
                     content.push(b' ');
                     content.extend_from_slice(path.to_str().unwrap().as_bytes());
                     content.push(b'\0');
-                    content.extend_from_slice(&hex::decode(entry.get_object_id()).unwrap());
+                    content.extend_from_slice(&hex::decode(entry.object_id()).unwrap());
                 }
                 TreeEntry::SubTree(tree) => {
                     content.extend_from_slice(tree.mode().as_bytes());
@@ -104,7 +106,7 @@ impl Tree {
                 TreeEntry::SubTree(tree) => {
                     //mytree=tree.clone();
                     //mytree = tree.clone();
-                   tree.traverse(c);
+                    tree.traverse(c);
                 }
                 TreeEntry::Entry(entry) => {}
             }
@@ -112,7 +114,6 @@ impl Tree {
 
         c(self);
         //self.object_id= mytree.object_id.clone();
-
     }
 
     pub fn trverse_with_list<F>(&mut self, c: &F)
@@ -130,7 +131,7 @@ impl Tree {
                 TreeEntry::SubTree(tree) => {
                     //mytree=tree.clone();
                     //mytree = tree.clone();
-                   tree.traverse(c);
+                    tree.traverse(c);
                 }
                 TreeEntry::Entry(entry) => {}
             }
@@ -138,7 +139,6 @@ impl Tree {
 
         c(self);
         //self.object_id= mytree.object_id.clone();
-
     }
 }
 

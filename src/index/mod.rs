@@ -1,26 +1,28 @@
 use std::array::from_mut;
 use std::collections::{BTreeMap, BTreeSet};
 
-use std::fs::Metadata;
-use std::path::PathBuf;
 use crate::database::GHash;
 use crate::index::index_entry::IndexEntry;
 use sha1::Digest;
+use std::fs::Metadata;
+use std::path::PathBuf;
+use std::sync::RwLock;
+
 pub mod index_entry;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Index {
-    pub  pathname: PathBuf,
+    pub pathname: PathBuf,
     // need sort by path ,pathbuf is not sortable
-    pub index_entrys: BTreeMap<String,IndexEntry>,
+    pub index_entrys: BTreeMap<String, IndexEntry>,
     // nested ->nested/nested.txt ,nested/nested2/nested2.txt
     // nested/inner ->nested/inner/nested.txt ,nested/inner/nested2/nested2.txt
-    pub parent: BTreeMap<String,BTreeSet<String>>,
+    pub parent: BTreeMap<String, BTreeSet<String>>,
 
     pub keys: BTreeSet<String>,
-    pub changed:bool,
+    pub changed: bool,
+    lock:RwLock<()>,
 }
-
 
 impl Index {
     pub fn new(pathname: PathBuf) -> Self {
@@ -30,6 +32,7 @@ impl Index {
             parent: BTreeMap::new(),
             keys: BTreeSet::new(),
             changed: false,
+            lock:RwLock::new(()),
         }
     }
     fn insert_key(&mut self, pathname: String) {
@@ -58,7 +61,7 @@ impl Index {
     fn remove_parent_in_set(&mut self, parent_path: String, path_in_set: String) {
         let mut set = self.parent.get_mut(&parent_path).unwrap();
         set.remove(&path_in_set);
-        if set.is_empty(){
+        if set.is_empty() {
             self.parent.remove(&parent_path);
         }
     }
@@ -68,7 +71,8 @@ impl Index {
 
         self.remove_conflict(&index_entry);
 
-        self.index_entrys.insert(pathname.to_str().unwrap().to_string(), index_entry);
+        self.index_entrys
+            .insert(pathname.to_str().unwrap().to_string(), index_entry);
         self.changed = true;
     }
 
@@ -80,24 +84,23 @@ impl Index {
         // 如果新增加的文件的所有父目录，和已经存在的文件名冲突，说明源文件已经被删除，文件已经不存在了，需要删除index已经存在的文件
         // 就是说 原来是文件，现在是目录，需要删除原来的文件，删除原来的文件名是所有父目录
         let mut parent_dir = index_entry.parent_dir();
-        for  parent in parent_dir.clone() {
+        for parent in parent_dir.clone() {
             self.remove_entry(parent);
         }
 
-    // 如果新增加的文件, 和已经存在的目录冲突，需要删除已经存在的目录
-    // 例如，已经存在的目录是 /bin/abc/ff/abc.txt
-    // 新增加的文件是 /bin/abc/ff
-    // 因为系统不允许在同一个path下：名字相同的文件和目录同时存在
-    // 如果新增加的文件, 和已经存在的目录冲突，说明源文件已经被删除，文件已经不存在了，需要删除index已经存在的目录
-    // 就是说 原来是目录，现在是文件，需要删除原来的目录
+        // 如果新增加的文件, 和已经存在的目录冲突，需要删除已经存在的目录
+        // 例如，已经存在的目录是 /bin/abc/ff/abc.txt
+        // 新增加的文件是 /bin/abc/ff
+        // 因为系统不允许在同一个path下：名字相同的文件和目录同时存在
+        // 如果新增加的文件, 和已经存在的目录冲突，说明源文件已经被删除，文件已经不存在了，需要删除index已经存在的目录
+        // 就是说 原来是目录，现在是文件，需要删除原来的目录
         // 例如，已经存在的目录是 /bin/abc/ff/abc/ff.txt  -》 parent_dir = ["/bin/abc/ff/abc","/bin/abc/ff"，etc]
         // 新增加的文件是 /bin/abc/ff/abc
         // 要删除 源/abc/一下的所有文件，也就是、/bin/abc/ff/abc下的所有文件都要删除
-        self .remove_children(index_entry.path.clone());
-}
+        self.remove_children(index_entry.path.clone());
+    }
 
-
-    fn remove_entry(&mut self,pathname:String) {
+    fn remove_entry(&mut self, pathname: String) {
         let entry = self.get_entry_by_name(pathname.clone());
         if entry.is_none() {
             return;
@@ -107,15 +110,12 @@ impl Index {
 
         // entry 本身要删除，所有的父目录下的set要删除entry
         for parent_dir in entry.clone().unwrap().parent_dir() {
-
             self.remove_parent_in_set(parent_dir.clone(), entry.clone().unwrap().path.clone());
-
         }
-
     }
 
     // pathnames:is a dir
-    fn remove_children(&mut self,pathname:String) {
+    fn remove_children(&mut self, pathname: String) {
         if !self.parent.contains_key(&pathname) {
             return;
         }
@@ -124,14 +124,14 @@ impl Index {
         for child in children {
             self.remove_entry(child);
         }
-
     }
 
     pub fn write_updates(&mut self) {
+        let _guard = self.lock.write().unwrap();
         let entries = self.index_entrys.clone();
         //println!("entries: {:?}", entries);
         let mut content = vec![];
-        let version:u32 = 2;
+        let version: u32 = 2;
         // write header 4 bytes
         content.extend_from_slice(b"DIRC");
         // write version 4 bytes
@@ -139,8 +139,8 @@ impl Index {
         // write entry count 4 bytes
         content.extend_from_slice(&(self.index_entrys.len() as u32).to_be_bytes());
         // write entrys
-        for (_,index_entry) in self.index_entrys.iter() {
-            content.extend_from_slice(&index_entry.ctime .to_be_bytes());
+        for (_, index_entry) in self.index_entrys.iter() {
+            content.extend_from_slice(&index_entry.ctime.to_be_bytes());
             content.extend_from_slice(&index_entry.ctime_nsec.to_be_bytes());
             content.extend_from_slice(&index_entry.mtime.to_be_bytes());
             content.extend_from_slice(&index_entry.mtime_nsec.to_be_bytes());
@@ -162,7 +162,6 @@ impl Index {
             // 62 = 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 20 + 2
 
             content.extend_from_slice(&vec![0; padding_len as usize]);
-
         }
         // write sha1
         let mut hasher = sha1::Sha1::new();
@@ -174,49 +173,109 @@ impl Index {
         self.changed = false;
     }
 
-
-    pub fn load(&mut self)->BTreeMap<String,IndexEntry> {
+    pub fn load(&mut self) -> BTreeMap<String, IndexEntry> {
+        let _guard = self.lock.read().unwrap();
         let mut index_entrys = BTreeMap::new();
         let mut parent = BTreeMap::new();
         let mut keys = BTreeSet::new();
         let content = std::fs::read(self.pathname.clone()).unwrap();
-        if content.len()==0 {
+        if content.len() == 0 {
             return index_entrys;
         }
         // read head
         let mut offset = 0;
         let head = &content[offset..offset + 4];
         offset += 4;
-       // println!("head: {:?}", String::from_utf8(head.to_vec()).unwrap());
+        // println!("head: {:?}", String::from_utf8(head.to_vec()).unwrap());
         // read version
-        let version = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+        let version = u32::from_be_bytes([
+            content[offset],
+            content[offset + 1],
+            content[offset + 2],
+            content[offset + 3],
+        ]);
         offset += 4;
-       // println!("version: {}", version);
+        // println!("version: {}", version);
         // read entry count
-        let entry_count = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+        let entry_count = u32::from_be_bytes([
+            content[offset],
+            content[offset + 1],
+            content[offset + 2],
+            content[offset + 3],
+        ]);
         //println!("entry_count: {}", entry_count);
         offset += 4;
         // read entrys
         for _ in 0..entry_count {
-            let ctime = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let ctime = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
-            let ctime_nsec = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let ctime_nsec = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
-            let mtime = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let mtime = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
-            let mtime_nsec = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let mtime_nsec = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
-            let dev = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let dev = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
-            let ino = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let ino = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
-            let mode = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let mode = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
-            let uid = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let uid = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
-            let gid = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let gid = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
-            let file_size = u32::from_be_bytes([content[offset], content[offset + 1], content[offset + 2], content[offset + 3]]);
+            let file_size = u32::from_be_bytes([
+                content[offset],
+                content[offset + 1],
+                content[offset + 2],
+                content[offset + 3],
+            ]);
             offset += 4;
 
             let mut oid = vec![];
@@ -254,14 +313,13 @@ impl Index {
                 path: String::from_utf8(path).unwrap(),
             };
 
-
-            index_entrys.insert(index_entry.path.clone(),index_entry.clone());
+            index_entrys.insert(index_entry.path.clone(), index_entry.clone());
 
             for parent_dir in index_entry.clone().parent_dir() {
                 let mut set = parent.entry(parent_dir.clone()).or_insert(BTreeSet::new());
                 set.insert(index_entry.path.clone());
             }
-           keys.insert(index_entry.path.clone());
+            keys.insert(index_entry.path.clone());
         }
         // read sha1
         let mut content_sha1 = vec![];
@@ -280,7 +338,7 @@ impl Index {
             panic!("sha1 verify failed");
         }
         offset += 20;
-        self.index_entrys= index_entrys.clone();
+        self.index_entrys = index_entrys.clone();
         self.parent = parent.clone();
         self.keys = keys.clone();
         index_entrys
@@ -293,7 +351,6 @@ impl Index {
         if self.index_entrys.contains_key(pathname.to_str().unwrap()) {
             return true;
         }
-       false
+        false
     }
-
 }

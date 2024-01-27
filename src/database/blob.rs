@@ -1,6 +1,4 @@
-
 use crate::database::GHash;
-
 
 #[derive(Debug, Clone)]
 pub struct Blob {
@@ -36,4 +34,3 @@ impl From<&str> for Blob {
     }
 }
 // 压缩数据
-

@@ -1,28 +1,31 @@
-pub mod blob;
-pub mod commit;
-pub mod tree;
 pub mod author;
+pub mod blob;
+pub mod gcommit;
+pub mod tree;
 
-
+use crate::database::author::Author;
+use crate::database::blob::Blob;
+use crate::database::gcommit::GCommit;
+use crate::database::tree::{Tree, TreeEntry};
+use clap::builder::Str;
+use flate2::read::ZlibDecoder;
+use flate2::write::ZlibEncoder;
+use flate2::Compression;
+use indexmap::IndexMap;
 use sha1::Digest;
-use std::{fs, io};
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::{BufRead, Read, Write};
 use std::path::PathBuf;
-use clap::builder::Str;
-use flate2::Compression;
-use flate2::read::ZlibDecoder;
-use flate2::write::ZlibEncoder;
-use indexmap::IndexMap;
+use std::{fs, io};
 use tracing::info;
-use crate::database::author::Author;
-use crate::database::blob::Blob;
-use crate::database::commit::GCommit;
-use crate::database::tree::{Tree, TreeEntry};
+use tracing_subscriber::fmt::format;
 
 use crate::entry::Entry;
 
+pub fn blob_from(data: &str) -> Blob {
+    Blob::from(data)
+}
 pub type GHash = String;
 pub struct Database {
     pub path_name: PathBuf,
@@ -32,7 +35,7 @@ impl Database {
     pub fn new(path_name: PathBuf) -> Self {
         Self { path_name }
     }
-    
+
     pub fn hash_object(&self, data: &str, type_: &str) -> GHash {
         let mut content = vec![];
         content.extend_from_slice(type_.as_bytes());
@@ -69,7 +72,7 @@ impl Database {
         hash
     }
 
-    pub fn store_tree(&self, tree: &mut Tree)-> GHash {
+    pub fn store_tree(&self, tree: &mut Tree) -> GHash {
         //let content = format!("{} {}\0{}", tree.type_(), tree.len(), tree.to_string());
         let mut vv = vec![];
         vv.extend_from_slice(tree.type_().as_bytes());
@@ -145,33 +148,33 @@ pub fn decompress(data: &[u8]) -> io::Result<Vec<u8>> {
 }
 
 impl Database {
-    pub fn new_blob( data: String) -> Blob {
+    pub fn new_blob(data: String) -> Blob {
         Blob::new(data)
     }
     pub fn new_tree(entrys: Vec<Entry>) -> Tree {
         Tree::new(entrys)
     }
-    pub fn new_author( name: &str, email: &str) -> author::Author {
+    pub fn new_author(name: &str, email: &str) -> author::Author {
         Author::new(name, email)
     }
 
-    pub fn new_commit( parent_id: Option<GHash>, tree_id: GHash, author: Author, message: &str) -> GCommit {
+    pub fn new_commit(
+        parent_id: Option<GHash>,
+        tree_id: GHash,
+        author: Author,
+        message: &str,
+    ) -> GCommit {
         GCommit::new(parent_id, tree_id, author, message)
     }
 }
 
-
 impl Database {
-
     pub fn read_object(&self, hash: &str) -> Vec<u8> {
         let object_path = self
             .path_name
             .join(hash[0..2].to_string())
             .join(hash[2..].to_string());
-        let mut file = OpenOptions::new()
-            .read(true)
-            .open(object_path)
-            .unwrap();
+        let mut file = OpenOptions::new().read(true).open(object_path).unwrap();
         let mut content = vec![];
         file.read_to_end(&mut content).unwrap();
         let decompressed = decompress(&content).unwrap();
@@ -186,10 +189,9 @@ impl Database {
         let type_ = type_and_len[0];
         let len = type_and_len[1];
         let blob_data = iter.next().unwrap();
-        let mut blob=Blob::from(blob_data);
+        let mut blob = Blob::from(blob_data);
         blob.set_object_id(hash.to_string());
         blob
-
     }
 
     pub fn load_commit(&self, hash: &str) -> GCommit {
@@ -201,28 +203,73 @@ impl Database {
         let type_ = type_and_len[0];
         let len = type_and_len[1];
         let commit_data = iter.next().unwrap();
-        info!("commit with hash:{} data is : {:?}", hash,commit_data);
-        let mut commit=GCommit::from(commit_data);
+        info!("commit with hash:{} data is : {:?}", hash, commit_data);
+        let mut commit = GCommit::from(commit_data);
 
         commit.set_object_id(hash.to_string());
         commit
     }
+    pub fn find_a_commit(&self, part_hash: &str) -> Option<GHash> {
+        // find a file with part hash
+        // find a commit with hash
+        let start_dir=part_hash[0..2].to_string();
+        let start_path = self.path_name.clone().join(part_hash[0..2].to_string());
+        let other_path=part_hash[2..].to_string();
+        // println!("other_path is : {:?}",other_path);
+        // println!("start_path is : {:?}",start_path);
+        // println!("start_dir is : {:?}",start_dir);
+        if !start_path.clone().exists() {
+            return  None;
+        }
+        let mut paths = std::fs::read_dir(start_path.clone()).unwrap();
+
+        // find one
+        while let Some(path) = paths.next() {
+            let path = path.unwrap().path();
+            let file_name = path.file_name().unwrap().to_str().unwrap().to_string();
+            //println!("file_name is : {:?}",file_name);
+            if file_name.starts_with(&other_path) {
+                let other_name=path.strip_prefix(&start_path).unwrap().to_str().unwrap().to_string();
+                let full_hash=format!("{}{}",start_dir,other_name);
+               // println!("full_hash is : {:?}",full_hash    );
+
+                let res=self.check_whether_a_commit(full_hash.as_str());
+                if res {
+                    return Some(full_hash)
+                }
+                return None;
+            }
+        }
+        None
+    }
+
+    fn check_whether_a_commit(&self, hash: &str) -> bool {
+        let content = self.read_object(hash);
+        let content = String::from_utf8(content).unwrap();
+        let mut iter = content.splitn(2, '\0');
+        let type_and_len = iter.next().unwrap();
+        let type_and_len: Vec<&str> = type_and_len.split(' ').collect();
+        let type_ = type_and_len[0];
+       // let len = type_and_len[1];
+        type_ == "commit"
+    }
+
     //
-    pub  fn load_tree(&self, hash: &str,path_init:PathBuf) -> Tree {
+    pub fn load_tree(&self, hash: &str, path_init: PathBuf) -> Tree {
         let content = self.read_object(hash);
         println!("tree content: {:?}", content);
         // convert to str
         let mut entries_map = IndexMap::new();
-        let mut entries_list_map:IndexMap<PathBuf,Entry> = IndexMap::new();
+        let mut entries_list_map: IndexMap<PathBuf, Entry> = IndexMap::new();
         //tree with hash:fe002358f136fdcc8fbfd7a8cdc687fee7ee6429
         // data is : "100644 abc\0�⛲��CK�)�wZ���S�100644 abcdefg\0�⛲��CK�)�wZ���S�"
         // 如何解析这个字符串100644 abc\0�⛲��CK�)�wZ���S� 为一组？
         //String::from_utf8(content).unwrap(); 不能像上面这样转换，因为中间会有utf8error，
-        let mut tree :Tree= Default::default();
+        let mut tree: Tree = Default::default();
 
         let mut cursor = std::io::Cursor::new(content);
-        let mut buf1=vec![];
-        cursor.read_until(b'\0',&mut buf1).unwrap();
+        let mut buf1 = vec![];
+        cursor.read_until(b'\0', &mut buf1).unwrap();
         let type_and_len = String::from_utf8(buf1).unwrap();
         let type_and_len: Vec<&str> = type_and_len.split(' ').collect();
         let type_ = type_and_len[0];
@@ -230,25 +277,25 @@ impl Database {
         let len = len.trim_end_matches('\0');
         let len = len.parse::<usize>().unwrap();
         info!("type is : {:?}, len is : {:?}", type_, len);
-        let mut i=0;
+        let mut i = 0;
         let mut buf = vec![];
         loop {
-            if i>=len{
+            if i >= len {
                 break;
             }
             cursor.read_until(b' ', &mut buf).unwrap();
 
             let mode = String::from_utf8_lossy(&buf.clone()).to_string();
-            i+=mode.len();
+            i += mode.len();
             let mode = mode.trim_end_matches(' ');
 
             buf.clear();
-            if mode =="40000"{
+            if mode == "40000" {
                 //tree
                 cursor.read_until(b'\0', &mut buf).unwrap();
 
                 let path = String::from_utf8(buf.clone()).unwrap();
-                i+=path.len();
+                i += path.len();
                 buf.clear();
                 let path = path.trim_end_matches('\0');
 
@@ -256,23 +303,21 @@ impl Database {
                 // read 20 byte
                 let mut hash = vec![0; 20];
                 cursor.read_exact(&mut hash).unwrap();
-                i+=20;
-                let tree_oid=hex::encode(hash.clone());
-                let subtree=self.load_tree(tree_oid.as_str(),path_init.join(path.clone()));
+                i += 20;
+                let tree_oid = hex::encode(hash.clone());
+                let subtree = self.load_tree(tree_oid.as_str(), path_init.join(path.clone()));
                 let tree_entry = TreeEntry::SubTree(subtree.clone());
                 entries_map.insert(path.clone(), tree_entry);
-                let elist=subtree.entries_list.clone();
-                for (k,v) in elist.iter(){
-                    entries_list_map.insert(k.clone(),v.clone());
+                let elist = subtree.entries_list.clone();
+                for (k, v) in elist.iter() {
+                    entries_list_map.insert(k.clone(), v.clone());
                 }
-
-            }else {
-
+            } else {
                 //entry
                 cursor.read_until(b'\0', &mut buf).unwrap();
 
                 let path = String::from_utf8(buf.clone()).unwrap();
-                i+=path.len();
+                i += path.len();
                 buf.clear();
                 let path = path.trim_end_matches('\0');
                 let path = PathBuf::from(path);
@@ -282,25 +327,24 @@ impl Database {
 
                 cursor.read_exact(&mut hash).unwrap();
 
-                i+=20;
-                let object_id=hex::encode(hash.clone());
-                let entry=Entry::new(path_init.join(path.clone()),&object_id,None);
+                i += 20;
+                let object_id = hex::encode(hash.clone());
+                let entry = Entry::new(path_init.join(path.clone()), &object_id, mode);
                 let tree_entry = TreeEntry::Entry(entry.clone());
                 entries_map.insert(path.clone(), tree_entry.clone());
 
                 entries_list_map.insert(path_init.join(path.clone()), entry.clone());
-               println!("entry is : {:?}", entries_list_map);
-
+                println!("entry is : {:?}", entries_list_map);
             }
         }
 
-
-        tree.entries=entries_map;
-        tree.entries_list=entries_list_map;
-        tree.object_id=hash.to_string();
+        tree.entries = entries_map;
+        tree.entries_list = entries_list_map;
+        tree.object_id = hash.to_string();
         tree
-
     }
+
+
 }
 // eg
 //Tree { entries: {"a": SubTree(Tree { entries: {"b": SubTree(Tree { entries: {"c.txt": Entry(Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" })},

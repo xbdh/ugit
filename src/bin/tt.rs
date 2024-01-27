@@ -3,9 +3,7 @@ use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 fn main() {
-    let v: Vec<&str> = "Mary aa\nhad\na\nlittle\n\nlamb\n\0"
-        .split('\n')
-        .collect();
+    let v: Vec<&str> = "Mary aa\nhad\na\nlittle\n\nlamb\n\0".split('\n').collect();
     for s in &v {
         println!("{}", s);
     }

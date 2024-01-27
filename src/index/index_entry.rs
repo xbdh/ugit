@@ -1,10 +1,10 @@
+use crate::database::GHash;
 use std::fmt::Debug;
 use std::fs::Metadata;
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
-use crate::database::GHash;
 
-
+// 存在index中的entry
 #[derive(Clone)]
 pub struct IndexEntry {
     pub ctime: u32,
@@ -29,11 +29,9 @@ impl Debug for IndexEntry {
     }
 }
 
-
-
 impl IndexEntry {
     // all fields are in paramto  build a index entry
-   pub fn new_all_fields(
+    pub fn new_all_fields(
         ctime: u32,
         ctime_nsec: u32,
         mtime: u32,
@@ -63,13 +61,7 @@ impl IndexEntry {
         }
     }
 
-    pub fn new(
-
-        path: PathBuf,
-
-        oid: String,
-        stat: Metadata,
-    ) -> Self {
+    pub fn new(path: PathBuf, oid: String, stat: Metadata) -> Self {
         Self {
             ctime: stat.ctime() as u32,
             ctime_nsec: stat.ctime_nsec() as u32,
@@ -126,6 +118,5 @@ impl IndexEntry {
             rev_str.push(p.to_str().unwrap().to_string());
         }
         rev_str
-
     }
 }

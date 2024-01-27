@@ -1,8 +1,7 @@
 use crate::database::author::Author;
 use crate::database::GHash;
 
-
-#[derive(Debug, Clone,Default)]
+#[derive(Debug, Clone, Default)]
 pub struct GCommit {
     oject_id: GHash,
     parent_id: Option<GHash>,
@@ -75,7 +74,7 @@ impl From<&str> for GCommit {
         // ""]
         let v: Vec<&str> = v.split('\n').collect();
         //println!("v: {:?}", v);
-        if v.len()==7{
+        if v.len() == 7 {
             let tree_id = v[0].split(' ').collect::<Vec<&str>>()[1].to_string();
             let parent_id = v[1].split(' ').collect::<Vec<&str>>()[1].to_string();
             let author = Author::from(v[2]);
@@ -87,18 +86,17 @@ impl From<&str> for GCommit {
                 author,
                 message,
             }
-        }else{
-                let tree_id = v[0].split(' ').collect::<Vec<&str>>()[1].to_string();
-                let author = Author::from(v[1]);
-                let message = v[4].to_string();
-                Self {
-                    parent_id: None,
-                    oject_id: "".to_string(),
-                    tree_id,
-                    author,
-                    message,
-                }
+        } else {
+            let tree_id = v[0].split(' ').collect::<Vec<&str>>()[1].to_string();
+            let author = Author::from(v[1]);
+            let message = v[4].to_string();
+            Self {
+                parent_id: None,
+                oject_id: "".to_string(),
+                tree_id,
+                author,
+                message,
             }
+        }
     }
-
 }

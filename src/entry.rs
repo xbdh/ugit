@@ -1,23 +1,23 @@
-
+use crate::database::GHash;
 use std::fmt::Debug;
 use std::fs::Metadata;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-use crate::database::GHash;
 
 #[derive(Clone)]
 pub struct Entry {
-    pub(crate) filename: PathBuf,
-    pub(crate) object_id: GHash,
-    pub(crate) stat: Option<Metadata>, // 对于tree.rs的From trait 路径不完整，无法获取，而且也没必要。
-    //pub mode: Option<String>
+    filename: PathBuf,
+    object_id: GHash,
+    mode: String,
+   // pub(crate) stat: Option<Metadata>, // 对于tree.rs的From trait 路径不完整，无法获取，而且也没必要。
+                                       //pub mode: Option<String>
 }
 impl Default for Entry {
     fn default() -> Self {
         Self {
             filename: PathBuf::new(),
             object_id: "".to_string(),
-            stat: None
+            mode: "".to_string(),
         }
     }
 }
@@ -31,37 +31,36 @@ impl Debug for Entry {
     }
 }
 impl Entry {
-    pub fn new(filename: PathBuf, object_id: &str, stat: Option<Metadata>) -> Self {
+    pub fn new(filename: PathBuf, object_id: &str, mode:&str) -> Self {
         Self {
             filename,
             object_id: object_id.to_string(),
-            stat
-           
+           // mode: "".to_string(),
+            mode: mode.to_string(),
         }
     }
-    pub fn get_filename(&self) -> PathBuf {
+    pub fn filename(&self) -> PathBuf {
         self.filename.clone()
     }
-    pub fn get_object_id(&self) -> &str {
+    pub fn object_id(&self) -> &str {
         &self.object_id
     }
 
-    pub fn get_mode(&self) -> &str {
-       if let Some(stat) = &self.stat {
-           if stat.is_dir() {
-               return "40000";
-           }
-           if stat.permissions().mode() & 0o100 == 0o100 {
-               "100755"
-           }else{
-               "100644"
-           }
-       }
-         else {
-             "100644" // 好像不会走到这里
-         }
-        // is executable
-
+    pub fn mode(&self) -> &str {
+        &self.mode
+        // if let Some(stat) = &self.stat {
+        //     if stat.is_dir() {
+        //         return "40000";
+        //     }
+        //     if stat.permissions().mode() & 0o100 == 0o100 {
+        //         "100755"
+        //     } else {
+        //         "100644"
+        //     }
+        // } else {
+        //     "100644" // 好像不会走到这里
+        // }
+        // // is executable
     }
 
     pub fn parent_dir(&self) -> Vec<PathBuf> {
