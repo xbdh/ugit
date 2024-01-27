@@ -4,4 +4,5 @@ pub mod status;
 pub mod add;
 pub mod commit;
 pub mod branch;
+pub mod checkout;
 

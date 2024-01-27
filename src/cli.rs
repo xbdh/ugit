@@ -3,6 +3,7 @@ use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 use crate::cmd::add::Add;
 use crate::cmd::branch::Branch;
+use crate::cmd::checkout::Checkout;
 use crate::cmd::commit::Commit;
 use crate::cmd::diff::Diff;
 use crate::cmd::status::Status;
@@ -49,7 +50,7 @@ pub enum Command {
 
     #[clap(about = "checkout a file")]
     #[clap(name = "checkout")]
-    CheckoutCmd,
+    CheckoutCmd(CheckoutArgs),
 }
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
@@ -82,6 +83,11 @@ pub struct BranchArgs {
     pub name: Option<String>,
     #[clap(help = "rev")]
     pub rev: Option<String>,
+}
+#[derive(Args, Debug)]
+pub struct CheckoutArgs {
+    #[clap(help = "rev")]
+    pub rev: String,
 }
 
 impl Command {
@@ -149,6 +155,15 @@ impl Command {
                 let root_path = PathBuf::from("/home/rain/rust/abcd");
                 let branch = Branch::new(root_path);
                 branch.run(name, rev);
+            }
+            Command::CheckoutCmd(checkout_args) => {
+                let rev = checkout_args.rev.clone();
+                // for prod
+                // let root_path = current_dir().unwrap();
+                // for test
+                let root_path = PathBuf::from("/home/rain/rust/abcd");
+                let checkout = Checkout::new(root_path);
+                checkout.run(rev);
             }
             // ignore
             _ => {}

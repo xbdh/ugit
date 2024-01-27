@@ -60,4 +60,29 @@ impl Workspace {
     pub fn stat_file(&self, path: &PathBuf) -> fs::Metadata {
         fs::metadata(self.path_name.join(path)).unwrap()
     }
+
+    pub fn write_file(&self, path: &PathBuf, content: &String) {
+        fs::write(self.path_name.join(path), content).unwrap();
+    }
+
+    pub fn remove_file(&self, path: &PathBuf) {
+        fs::remove_file(self.path_name.join(path)).unwrap();
+    }
+
+    pub fn is_empty_dir(&self, path: &PathBuf) -> bool {
+        let full_path = self.path_name.join(path);
+        // check if it is a dir and is empty
+        full_path.is_dir() && fs::read_dir(full_path).unwrap().next().is_none()
+    }
+
+    pub fn remove_dir(&self, path: &PathBuf) {
+        fs::remove_dir(self.path_name.join(path)).unwrap();
+    }
+    pub fn dir_exists(&self, path: &PathBuf) -> bool {
+        let full_path = self.path_name.join(path);
+        full_path.is_dir()
+    }
+    pub fn mkdir(&self, path: &PathBuf) {
+        fs::create_dir(self.path_name.join(path)).unwrap();
+    }
 }

@@ -27,6 +27,8 @@ pub fn blob_from(data: &str) -> Blob {
     Blob::from(data)
 }
 pub type GHash = String;
+
+
 pub struct Database {
     pub path_name: PathBuf,
 }

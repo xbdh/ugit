@@ -125,6 +125,13 @@ impl Index {
             self.remove_entry(child);
         }
     }
+    
+    pub fn remove(&mut self, pathname: PathBuf) {
+        let pathname = pathname.to_str().unwrap().to_string();
+        self.remove_entry(pathname.clone());
+        self.remove_children(pathname.clone());
+        self.changed = true;
+    }
 
     pub fn write_updates(&mut self) {
         let _guard = self.lock.write().unwrap();

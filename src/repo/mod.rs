@@ -1,3 +1,6 @@
+pub mod migration;
+pub mod inspector;
+
 use crate::database::Database;
 use crate::index::Index;
 use crate::refs::Refs;
@@ -5,6 +8,7 @@ use crate::workspace::Workspace;
 use std::path::PathBuf;
 
 // abc/.git  stand for anythings in .git
+#[derive(Debug, Clone)]
 pub struct Repo {
     pub git_path: PathBuf,
 }
