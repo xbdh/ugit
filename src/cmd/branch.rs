@@ -1,5 +1,8 @@
-use std::path::PathBuf;
 use crate::repo::Repo;
+use crate::util;
+use std::path::PathBuf;
+use tracing::info;
+use crate::refs::CurrentBranch;
 
 pub struct Branch {
     root_path: PathBuf,
@@ -9,10 +12,7 @@ pub struct Branch {
 impl Branch {
     pub fn new(root_path: PathBuf) -> Self {
         let repo = Repo::new(root_path.join(".git"));
-        Branch {
-            root_path,
-            repo,
-        }
+        Branch { root_path, repo }
     }
 
     fn root_path(&self) -> PathBuf {
@@ -23,34 +23,41 @@ impl Branch {
         &self.repo
     }
 
-    pub fn run(&self, name:Option<String>,rev:Option<String>) {
+    pub fn run(&self, name: Option<String>) {
         let repo = self.repo();
         let refs = repo.refs();
         let database = repo.database();
+        if refs.refs_heads_is_empty() {
+            println!("please use branch after the first commit");
+            return;
+        }
 
         let branch_name = name;
-        let start_point = rev;
-        let head = refs.read_head().unwrap();
-        // let head = refs.read_head().unwrap();
-        println!("branch_name: {:?}", branch_name);
+        let head = refs.read_HEAD();
         if let Some(name) = branch_name {
-            if let Some(start_point) = start_point {
-               if start_point.len()<6{
-                   panic!("commit id is too short")
-               }
-                if let Some(commit_id) = database.find_a_commit(start_point.as_str()) {
-                    refs.create_branch(name.as_str(), &commit_id);
-                }else{
-                    panic!("cant find a commit with id: {}", start_point)
+            refs.create_branch(name.as_str(), head);
+            // in real git  only after a commit ,then can create a branch
+            println!("create branch {}", name)
+        } else {
+            let mut list = refs.list_branches();
+            let cb = refs.current_branch_name();
+            match cb {
+                CurrentBranch::Branch(branch) => {
+                    // delete current branch from list
+                    list.retain(|x| x != &branch);
+                    let branch = format!("* {}", branch);
+                    util::write_greenln(&branch);
                 }
-            }else {
-                refs.create_branch(name.as_str(),head.as_str());
+                CurrentBranch::Detached(oid) => {
+                    let branch = format!("* (HEAD detached at {})", oid);
+                    util::write_greenln(&branch);
+                }
             }
-        }else {
-            let list = refs.list_branches();
-            println!("list: {:?}", list);
+            for branch in list {
+                    let branch = format!("  {}", branch);
+                    util::write_blackln(&branch);
+            }
         }
-       // refs.create_branch(name.as_str());
-
+        // refs.create_branch(name.as_str());
     }
 }

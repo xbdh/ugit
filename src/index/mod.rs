@@ -21,7 +21,7 @@ pub struct Index {
 
     pub keys: BTreeSet<String>,
     pub changed: bool,
-    lock:RwLock<()>,
+    lock: RwLock<()>,
 }
 
 impl Index {
@@ -32,7 +32,7 @@ impl Index {
             parent: BTreeMap::new(),
             keys: BTreeSet::new(),
             changed: false,
-            lock:RwLock::new(()),
+            lock: RwLock::new(()),
         }
     }
     fn insert_key(&mut self, pathname: String) {
@@ -73,6 +73,7 @@ impl Index {
 
         self.index_entrys
             .insert(pathname.to_str().unwrap().to_string(), index_entry);
+        self.keys.insert(pathname.to_str().unwrap().to_string());
         self.changed = true;
     }
 
@@ -125,7 +126,7 @@ impl Index {
             self.remove_entry(child);
         }
     }
-    
+
     pub fn remove(&mut self, pathname: PathBuf) {
         let pathname = pathname.to_str().unwrap().to_string();
         self.remove_entry(pathname.clone());
@@ -359,5 +360,15 @@ impl Index {
             return true;
         }
         false
+    }
+
+    pub fn index_entrys(&self) -> &BTreeMap<String, IndexEntry> {
+        &self.index_entrys
+    }
+    pub fn keys(&self) -> &BTreeSet<String> {
+        &self.keys
+    }
+    pub fn parent(&self) -> &BTreeMap<String, BTreeSet<String>> {
+        &self.parent
     }
 }

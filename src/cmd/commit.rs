@@ -1,13 +1,13 @@
-use std::path::PathBuf;
-use crate::repo::Repo;
-use std::os::unix::fs::{MetadataExt, PermissionsExt};
-use std::fs::Metadata;
-use tracing::info;
-use crate::database::Database;
 use crate::database::gcommit::GCommit;
 use crate::database::tree::Tree;
+use crate::database::{Database, GHash};
 use crate::entry::Entry;
+use crate::repo::Repo;
 use crate::util;
+use std::fs::Metadata;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
+use std::path::PathBuf;
+use tracing::info;
 
 pub struct Commit {
     root_path: PathBuf,
@@ -17,10 +17,7 @@ pub struct Commit {
 impl Commit {
     pub fn new(root_path: PathBuf) -> Self {
         let repo = Repo::new(root_path.join(".git"));
-        Commit {
-            root_path,
-            repo,
-        }
+        Commit { root_path, repo }
     }
 
     fn root_path(&self) -> PathBuf {
@@ -47,9 +44,9 @@ impl Commit {
         for (_, index_entry) in index_entrys.iter() {
             let file_path = PathBuf::from(index_entry.path.clone());
             let bhash = index_entry.oid.clone();
-            let stat = workspace.stat_file(&file_path);
+            let entry_mode = index_entry.mode();
             let mut mode = "100644";
-            if stat.permissions().mode() & 0o100 == 0o100 {
+            if entry_mode & 0o100 == 0o100 {
                 mode = "100755"
             } else {
                 mode = "100644"
@@ -67,31 +64,50 @@ impl Commit {
         tree.traverse(&func);
 
         let tree_hash = tree.get_object_id();
-        info!("tree hash is : {:?}", tree_hash);
-        info!("tree is : {:?}", tree);
 
         let name = "rain";
         let email = "1344535251@qq.com";
         //let message = "first commit";
         let author = Database::new_author(name, email);
-        let parent_id = refs.read_head();
 
-        let commit = GCommit::new(parent_id, tree_hash.to_string(), author, message.as_str());
-
-        let pre_head = refs.read_head();
-        let commit_hash = database.store_commit(commit);
-        refs.update_head(&commit_hash);
-
-        match pre_head {
-            Some(pre_head) => {
-                let text = format!("[main {}] {}", &commit_hash[0..6], message);
-                util::write_buleln(text.as_str());
-            }
-            None => {
-                let text = format!("[main (root-commit) {}] {}", &commit_hash[0..6], message);
-                util::write_buleln(text.as_str());
-            }
+        let refs_empty = refs.refs_heads_is_empty();
+        let mut parent_id: GHash = "".to_string();
+        let mut commit: GCommit;
+        if !refs_empty {
+            parent_id = refs.read_HEAD();
+            commit = GCommit::new(
+                Some(parent_id.clone()),
+                tree_hash.to_string(),
+                author,
+                message.as_str(),
+            );
+        } else {
+            commit = GCommit::new(None, tree_hash.to_string(), author, message.as_str());
         }
-        info!("commit hash is : {:?}", commit_hash);
+
+        // let commit = GCommit::new(parent_id.clone(), tree_hash.to_string(), author, message.as_str());
+
+        let commit_hash = database.store_commit(commit);
+        let current_branch = refs.current_branch();
+        refs.update_HEAD(&commit_hash);
+
+        info!("current branch  is : {:?}", current_branch);
+        info!("current commit hash is : {:?}", commit_hash);
+        info!("parent commit hash is : {:?}", parent_id);
+        info!("tree hash is : {:?}", tree_hash);
+        info!("commit message: {:?}", message);
+
+        if !refs_empty {
+            let text = format!("[{} {}] {}", current_branch, &commit_hash[0..6], message);
+            util::write_blackln(text.as_str());
+        } else {
+            let text = format!(
+                "[{} (root-commit) {}] {}",
+                current_branch,
+                &commit_hash[0..6],
+                message
+            );
+            util::write_blackln(text.as_str());
+        }
     }
 }

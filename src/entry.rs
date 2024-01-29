@@ -9,8 +9,8 @@ pub struct Entry {
     filename: PathBuf,
     object_id: GHash,
     mode: String,
-   // pub(crate) stat: Option<Metadata>, // 对于tree.rs的From trait 路径不完整，无法获取，而且也没必要。
-                                       //pub mode: Option<String>
+    // pub(crate) stat: Option<Metadata>, // 对于tree.rs的From trait 路径不完整，无法获取，而且也没必要。
+    //pub mode: Option<String>
 }
 impl Default for Entry {
     fn default() -> Self {
@@ -31,11 +31,11 @@ impl Debug for Entry {
     }
 }
 impl Entry {
-    pub fn new(filename: PathBuf, object_id: &str, mode:&str) -> Self {
+    pub fn new(filename: PathBuf, object_id: &str, mode: &str) -> Self {
         Self {
             filename,
             object_id: object_id.to_string(),
-           // mode: "".to_string(),
+            // mode: "".to_string(),
             mode: mode.to_string(),
         }
     }

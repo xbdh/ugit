@@ -1,3 +1,12 @@
+#![allow(warnings)]
+#![allow(dead_code)]
+#![allow(unused_imports)]
+#![allow(unused_variables)]
+#![allow(unused_mut)]
+#![allow(unused_macros)]
+#![allow(unused_parens)]
+#![allow(unused_must_use)]
+#![allow(unused_assignments)]
 use similar::{ChangeTag, TextDiff};
 
 fn main() {

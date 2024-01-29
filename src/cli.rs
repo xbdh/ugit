@@ -1,13 +1,14 @@
-use crate::cmd::init::Init;
-use clap::{Args, Parser, Subcommand};
-use std::path::PathBuf;
 use crate::cmd::add::Add;
 use crate::cmd::branch::Branch;
 use crate::cmd::checkout::Checkout;
 use crate::cmd::commit::Commit;
 use crate::cmd::diff::Diff;
+use crate::cmd::init::Init;
 use crate::cmd::status::Status;
-
+use clap::{Args, Parser, Subcommand};
+use std::path::PathBuf;
+use tracing::info;
+use crate::cmd::switch::Switch;
 
 #[derive(Parser)]
 #[clap(
@@ -29,7 +30,7 @@ pub struct Cli {
 pub enum Command {
     #[clap(about = "init a repo")]
     #[clap(name = "init")]
-     InitCmd(InitArgs),
+    InitCmd(InitArgs),
 
     #[clap(about = "add a file")]
     #[clap(name = "add")]
@@ -38,6 +39,9 @@ pub enum Command {
     #[clap(about = "commit a file")]
     #[clap(name = "commit")]
     CommitCmd(CommitArgs),
+
+    #[clap(about = "status a file")]
+    #[clap(name = "st")]
     StatusCmd,
 
     #[clap(about = "diff a file")]
@@ -51,6 +55,10 @@ pub enum Command {
     #[clap(about = "checkout a file")]
     #[clap(name = "checkout")]
     CheckoutCmd(CheckoutArgs),
+
+    #[clap(about = "switch a branch")]
+    #[clap(name = "switch")]
+    SwitchCmd(SwitchArgs),
 }
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
@@ -81,89 +89,85 @@ pub struct DiffArgs {
 pub struct BranchArgs {
     #[clap(help = "branch name")]
     pub name: Option<String>,
-    #[clap(help = "rev")]
-    pub rev: Option<String>,
+    // #[clap(help = "rev")]
+    // pub rev: Option<String>,
 }
 #[derive(Args, Debug)]
 pub struct CheckoutArgs {
     #[clap(help = "rev")]
-    pub rev: String,
+    pub commit_id: String,
+}
+
+#[derive(Args, Debug)]
+pub struct SwitchArgs {
+    #[clap(help = "branch")]
+    pub branch_name: String,
 }
 
 impl Command {
     pub fn execute(&self) {
+        //let root_path = current_dir().unwrap();
+        let root_path = PathBuf::from("/home/rain/rust/abcd");
         match self {
             Command::InitCmd(init_args) => {
-                // prod
-                // let root_path = current_dir().unwrap();
+                info!("init_args: {:?}", init_args);
                 // let dir = init_args.dir.clone();
                 // let root_path = match dir {
                 //     Some(dir) => root_path.join(dir),
                 //     None => root_path,
                 // };
 
-                // for test
-                let root_path = PathBuf::from("/home/rain/rust/abcd");
                 let init = Init::new(root_path);
                 init.run();
             }
             Command::AddCmd(add_args) => {
+                info!("add_args: {:?}", add_args);
+
                 let path_list = add_args.path.clone();
                 let all = add_args.all;
 
-                // for prod
-                // let root_path = current_dir().unwrap();
-                // for test
-                let root_path = PathBuf::from("/home/rain/rust/abcd");
                 let add = Add::new(root_path);
                 add.run(path_list, all);
-
             }
             Command::CommitCmd(commit_args) => {
+                info!("commit_args: {:?}", commit_args);
                 let message = commit_args.message.clone();
-                // for prod
-                // let root_path = current_dir().unwrap();
-                // for test
-                let root_path = PathBuf::from("/home/rain/rust/abcd");
                 let commit = Commit::new(root_path);
                 commit.run(message);
             }
-            Command::StatusCmd =>{
-                // for prod
-                // let root_path = current_dir().unwrap();
-                // for test
-                let root_path = PathBuf::from("/home/rain/rust/abcd");
+            Command::StatusCmd => {
+                info!("status");
                 let status = Status::new(root_path);
                 status.run();
             }
 
             Command::DiffCmd(diff_args) => {
+                info!("diff_args: {:?}", diff_args);
+
                 let stage = diff_args.stage;
-                // for prod
-                // let root_path = current_dir().unwrap();
-                // for test
-                let root_path = PathBuf::from("/home/rain/rust/abcd");
                 let diff = Diff::new(root_path);
                 diff.run(stage);
             }
             Command::BranchCmd(branch_args) => {
+                info!("branch_args: {:?}", branch_args);
+
                 let name = branch_args.name.clone();
-                let rev = branch_args.rev.clone();
-                // for prod
-                // let root_path = current_dir().unwrap();
-                // for test
-                let root_path = PathBuf::from("/home/rain/rust/abcd");
+
                 let branch = Branch::new(root_path);
-                branch.run(name, rev);
+                branch.run(name);
             }
             Command::CheckoutCmd(checkout_args) => {
-                let rev = checkout_args.rev.clone();
-                // for prod
-                // let root_path = current_dir().unwrap();
-                // for test
-                let root_path = PathBuf::from("/home/rain/rust/abcd");
+                info!("checkout_args: {:?}", checkout_args);
+                let id = checkout_args.commit_id.clone();
                 let checkout = Checkout::new(root_path);
-                checkout.run(rev);
+                checkout.run(id);
+            }
+            Command::SwitchCmd(switch_args) => {
+                info!("switch_args: {:?}", switch_args);
+
+                let branch_name = switch_args.branch_name.clone();
+                let switch = Switch::new(root_path);
+                switch.run(branch_name);
             }
             // ignore
             _ => {}

@@ -9,6 +9,9 @@ pub struct Init {
     root_path: PathBuf,
     //repo:Repo,
 }
+// define a Const String
+const HEAD: &str = "ref: refs/heads/main";
+const BRANCH: &str = "main";
 
 impl Init {
     pub fn new(root_path: PathBuf) -> Self {
@@ -34,14 +37,21 @@ impl Init {
         // create HEAD file
         // write ref: refs/heads/main to HEAD file
         let mut head_file = fs::File::create(&head_path).unwrap();
-        head_file.write_all("ref: refs/heads/main".as_bytes()).unwrap();
+        // write a line
+        head_file.write_all(HEAD.as_ref()).unwrap();
+        head_file.write_all(b"\n").unwrap(); // write a line
+                                             //
 
-        // create refs/heads/main file
-        fs::File::create(&refs_path.join("main")).unwrap();
+        // there is nothing in refs/heads/  at beginning ,
+        // so when ti is empty ,we must create a commit  the wen can use branch,diff and so on
 
         let text = format!("Initialized empty Git repository in {:?}", git_path);
         util::write_buleln(text.as_str());
         info!(
+            "Initialized empty Git repository in {:?}",
+            git_path.to_str().unwrap()
+        );
+        println!(
             "Initialized empty Git repository in {:?}",
             git_path.to_str().unwrap()
         );

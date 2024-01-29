@@ -1,5 +1,5 @@
-pub mod migration;
 pub mod inspector;
+pub mod migration;
 
 use crate::database::Database;
 use crate::index::Index;

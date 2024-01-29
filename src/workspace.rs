@@ -2,6 +2,7 @@ use std::fs;
 use std::fs::DirEntry;
 use std::path::{Path, PathBuf};
 
+#[derive(Debug, Clone)]
 pub struct Workspace {
     pub path_name: PathBuf,
 }

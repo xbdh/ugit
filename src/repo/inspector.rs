@@ -1,4 +1,5 @@
 use crate::entry::Entry;
+use crate::index::index_entry::IndexEntry;
 use crate::repo::Repo;
 use crate::util;
 use indexmap::IndexMap;
@@ -6,8 +7,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Display};
 use std::os::unix::fs::MetadataExt;
 use std::path::PathBuf;
-use crate::index::index_entry::IndexEntry;
-
+use tracing::info;
 
 pub enum WIST {
     WorkspaceModified,
@@ -37,30 +37,24 @@ impl Debug for WIST {
 pub struct Inspector {
     repo: Repo,
     tree_entrys: IndexMap<PathBuf, Entry>,
-    index_entrys:BTreeMap<String, IndexEntry>,
+    index_entrys: BTreeMap<String, IndexEntry>,
     workspace_entrys: Vec<PathBuf>,
     untracked_files: Vec<PathBuf>,
     changed: HashSet<PathBuf>,
     workspace_chanages: HashMap<PathBuf, WIST>,
     index_chanages: HashMap<PathBuf, WIST>,
 }
-impl  Inspector{
+impl Inspector {
     pub fn new(repo: Repo) -> Self {
-
-        
         let workspace = repo.workspace();
         let database = repo.database();
         let mut index = repo.index();
         let refs = repo.refs();
-        let head = refs.read_head();
-        //println!("head: {:?}", head);
         let mut tree_entrys: IndexMap<PathBuf, Entry> = IndexMap::new();
-        if head.is_none() {
-            util::write_blackln("No commits yet");
-        } else {
-            let commit = database.load_commit(head.unwrap().as_str());
+        if !refs.refs_heads_is_empty() {
+            let head = refs.read_HEAD();
+            let commit = database.load_commit(&head);
             let tree = database.load_tree(commit.tree_id.as_str(), PathBuf::new());
-            println!("tree: {:?}", tree);
             tree_entrys = tree.entries_list.clone();
         }
 
@@ -149,8 +143,16 @@ impl  Inspector{
                 Some(index_entry) => {}
             }
         }
-        
-        Self    {
+        //info!("HEAD: {:?}", head);
+        info!("workspace_entrys: {:?}", workspace_entrys);
+        info!("index_entrys: {:?}", index_entrys);
+        info!("tree_entrys: {:?}", tree_entrys);
+        info!("workspace_chanages: {:?}", workspace_chanages);
+        info!("index_chanages: {:?}", index_chanages);
+        info!("untracked_files: {:?}", untracked_files);
+        info!("changed: {:?}", changed);
+
+        Self {
             repo,
             tree_entrys,
             index_entrys,
@@ -161,7 +163,6 @@ impl  Inspector{
             index_chanages,
         }
     }
-    
 
     pub fn repo(&self) -> &Repo {
         &self.repo
@@ -175,7 +176,7 @@ impl  Inspector{
     pub fn workspace_entrys(&self) -> &Vec<PathBuf> {
         &self.workspace_entrys
     }
-    
+
     pub fn untracked_files(&self) -> &Vec<PathBuf> {
         &self.untracked_files
     }
@@ -188,11 +189,10 @@ impl  Inspector{
     pub fn index_chanages(&self) -> &HashMap<PathBuf, WIST> {
         &self.index_chanages
     }
-    
+
     pub fn is_clean(&self) -> bool {
-        self.untracked_files.is_empty() && 
-            self.index_chanages.is_empty()  &&
-            self.workspace_chanages.is_empty() 
+        self.untracked_files.is_empty()
+            && self.index_chanages.is_empty()
+            && self.workspace_chanages.is_empty()
     }
-  
 }
