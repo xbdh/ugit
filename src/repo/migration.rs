@@ -122,22 +122,11 @@ impl Migration {
             for filename in delete_files.iter() {
                 index.remove(filename.clone());
             }
-            for filename in delete_files.iter() {
-                index.remove(filename.clone());
-            }
         }
 
 
         // add
         if let Some(add_files) = self.changes.get(&ChangeType::Add) {
-            for filename in add_files.iter() {
-                let (old_hash, new_hash) = self.tree_diff.get(filename).unwrap();
-                index.add(
-                    filename.clone(),
-                    new_hash.clone(),
-                    workspace.stat_file(filename),
-                );
-            }
             for filename in add_files.iter() {
                 let (old_hash, new_hash) = self.tree_diff.get(filename).unwrap();
                 index.add(
