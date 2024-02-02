@@ -6,12 +6,14 @@ use std::str::FromStr;
 pub struct Author {
     name: String,
     email: String,
+    date: u32,
 }
 impl Author {
     pub fn new(name: &str, email: &str) -> Self {
         Self {
             name: name.to_string(),
             email: email.to_string(),
+            date: 0,
         }
     }
     pub fn to_string(&self) -> Vec<u8> {
@@ -28,6 +30,17 @@ impl Author {
         v.extend_from_slice(timestamp.to_string().as_bytes());
         v
     }
+
+    pub fn date(&self) -> u32 {
+        self.date
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+    pub fn email(&self) -> &str {
+        &self.email
+    }
 }
 
 impl From<&str> for Author {
@@ -38,11 +51,14 @@ impl From<&str> for Author {
         // remmove < and > from email
         email.remove(0);
         email.remove(email.len() - 1);
+        let date = u32::from_str(v[3]).unwrap();
 
         Self {
             name: v[1].to_string(),
             // remove < and >
             email,
+            date,
         }
     }
 }
+

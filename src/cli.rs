@@ -8,6 +8,7 @@ use crate::cmd::status::Status;
 use clap::{Args, Parser, Subcommand};
 use std::path::PathBuf;
 use tracing::info;
+use crate::cmd::log::Log;
 use crate::cmd::switch::Switch;
 
 #[derive(Parser)]
@@ -59,6 +60,10 @@ pub enum Command {
     #[clap(about = "switch a branch")]
     #[clap(name = "switch")]
     SwitchCmd(SwitchArgs),
+
+    #[clap(about = "log a file")]
+    #[clap(name = "log")]
+    LogCmd(LogArgs),
 }
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
@@ -102,6 +107,15 @@ pub struct CheckoutArgs {
 pub struct SwitchArgs {
     #[clap(help = "branch")]
     pub branch_name: String,
+}
+
+#[derive(Args, Debug)]
+pub struct LogArgs {
+    #[clap(help = "rev")]
+    pub brs: Vec<String>,
+
+    #[clap(short, long)]
+    pub exclude: bool,
 }
 
 impl Command {
@@ -168,6 +182,13 @@ impl Command {
                 let branch_name = switch_args.branch_name.clone();
                 let switch = Switch::new(root_path);
                 switch.run(branch_name);
+            }
+            Command::LogCmd(log_args) => {
+                info!("log_args: {:?}", log_args);
+                let brs = log_args.brs.clone();
+                let exclude = log_args.exclude;
+                let log = Log::new(root_path);
+                log.run(brs,exclude);
             }
             // ignore
             _ => {}

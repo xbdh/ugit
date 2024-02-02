@@ -148,9 +148,11 @@ impl Migration {
                     workspace.stat_file(filename),
                 );
             }
-        }
+      }
         index.write_updates();
+
     }
+
 }
 
 // eg abc/wdf/tt.txt  -> abc/wdf ,wdf

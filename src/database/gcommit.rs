@@ -61,6 +61,19 @@ impl GCommit {
     pub fn len(&self) -> usize {
         self.to_string().len()
     }
+    
+    pub fn parent_id(&self) -> Option<GHash> {
+        self.parent_id.clone()
+    }
+    pub fn object_id(&self) -> GHash {
+        self.oject_id.clone()
+    }
+    pub fn message(&self) -> String {
+        self.message.clone()
+    }
+    pub fn author(&self) -> Author {
+        self.author.clone()
+    }
 }
 
 impl From<&str> for GCommit {

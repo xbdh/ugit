@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use crate::database::GHash;
 use std::fs;
 use std::path::PathBuf;
@@ -231,6 +232,23 @@ impl Refs {
                 CurrentBranch::Detached(oidref.oid)
             }
         }
+    }
+
+    pub fn branch_map_hash(&self) -> HashMap<GHash,Vec<String>>{
+        let mut map = HashMap::new();
+        let mut paths = std::fs::read_dir(self.heads_path.clone()).unwrap();
+        while let Some(path) = paths.next() {
+            let path = path.unwrap().path();
+            let branch_name = path.file_name().unwrap().to_str().unwrap().to_string();
+            let content = std::fs::read_to_string(path).unwrap();
+            let hash = content.trim_end().to_string();
+            map.entry(hash).or_insert(vec![]).push(branch_name);
+        }
+        // read HEAD
+        let head_hash = self.read_HEAD();
+        map.entry(head_hash).or_insert(vec![]).push("HEAD".to_string());
+
+        map
     }
 
 }
