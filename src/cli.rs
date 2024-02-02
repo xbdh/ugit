@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use tracing::info;
 use crate::cmd::log::Log;
 use crate::cmd::switch::Switch;
+use crate::repo::log_list::CommonAncestors;
 
 #[derive(Parser)]
 #[clap(
@@ -64,6 +65,10 @@ pub enum Command {
     #[clap(about = "log a file")]
     #[clap(name = "log")]
     LogCmd(LogArgs),
+
+    #[clap(about = "merge a file")]
+    #[clap(name = "merge")]
+    Test,
 }
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
@@ -189,6 +194,9 @@ impl Command {
                 let exclude = log_args.exclude;
                 let log = Log::new(root_path);
                 log.run(brs,exclude);
+            }
+            Command::Test => {
+
             }
             // ignore
             _ => {}

@@ -5,7 +5,7 @@ use tracing_subscriber::fmt::format;
 use crate::cmd::add::Add;
 use crate::database::gcommit::GCommit;
 use crate::database::GHash;
-use crate::repo::log_list::{LogListExclude, LogListUnion};
+use crate::repo::log_list::{CommonAncestors, LogListExclude, LogListUnion};
 use crate::repo::Repo;
 use crate::util;
 
@@ -30,18 +30,22 @@ impl Log {
         let refs = repo.refs();
         let head = refs.read_HEAD();
         let bhmap = refs.branch_map_hash();
-
-
+        let db = repo.database();
         if exclude {
             let br1 = brs[0].clone();
             let hash1 = refs.get_branch_hash(&br1);
             let br2 = brs[1].clone();
             let hash2 = refs.get_branch_hash(&br2);
-
+            // let mut ancestor = CommonAncestors::new(db,hash1.clone(),hash2.clone());
+            // let c=ancestor.run();
+            // println!("ancestor {:?}",c);
             let log_list=LogListExclude::new(repo.clone(),hash1,hash2);
             for commit in log_list.into_iter() {
                 print_commit(commit,bhmap.clone());
             }
+
+
+
         }else{
             let mut v=vec![];
 

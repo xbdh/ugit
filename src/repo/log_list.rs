@@ -3,7 +3,7 @@ use std::ptr::eq;
 use sha1::digest::typenum::Quot;
 use tracing::info;
 use crate::database::gcommit::GCommit;
-use crate::database::GHash;
+use crate::database::{Database, GHash};
 use crate::repo::Repo;
 
 #[derive(Debug,Clone,Eq, PartialEq)]
@@ -11,6 +11,8 @@ enum Flag{
     Seen,
     Processed,
     Uninteresting,
+    ParentOne,
+    ParentTwo,
 }
 // u32 max 4294967295
 const Max:u32 = 4294967295;
@@ -216,5 +218,69 @@ impl Iterator for LogListExclude {
         //info!("exclude branch list item is: {:?}", cc);
 
         None
+    }
+}
+
+pub struct CommonAncestors {
+    pub db :Database,
+    pub queue: BTreeMap<u32,GCommit>,
+    pub flags: HashMap<GHash,Vec<Flag>>,
+
+}
+
+impl CommonAncestors {
+    pub fn new(db: Database,br1:GHash,br2:GHash) -> Self {
+        let mut flags = HashMap::new();
+        let mut queue = BTreeMap::new();
+        let commit1 = db.load_commit(&br1);
+        let commit2 = db.load_commit(&br2 );
+
+        queue.insert(Max-commit1.author.date(),commit1.clone());
+        queue.insert(Max-commit2.author.date(),commit2.clone());
+        flags.insert(br1.clone(),vec![Flag::ParentOne]);
+        flags.insert(br2.clone(),vec![Flag::ParentTwo]);
+        Self {
+            db,
+            queue: queue,
+            flags: flags,
+        }
+
+    }
+
+
+    fn get_first_of_queue(&self) -> (u32, GCommit) {
+        let (date, commit) = self.queue.iter().next().unwrap();
+        (date.clone(), commit.clone())
+    }
+
+    pub fn run(&mut self) -> GHash {
+
+        let mut res= "".to_string();
+        while !self.queue.is_empty() {
+            // info!("curr queue is{:?}\n",self.queue.clone());
+            // info!("curr flags is{:?}\n",self.flags.clone());
+            // if flags contains both parent one and parent two
+            for (k,v) in self.flags.clone() {
+                if v.contains(&Flag::ParentOne)&&v.contains(&Flag::ParentTwo)  {
+                    res = k.clone();
+                    return res;
+                }
+            }
+
+            let (date,commit) = self.get_first_of_queue();
+            let curr_com_id = commit.object_id().clone();
+            self.queue.remove(&date);
+
+            let parent_id = commit.clone().parent_id();
+            if let Some(parent_id) = parent_id {
+
+                    let parent_commit = self.db.load_commit(&parent_id);
+                    self.queue.insert(Max-parent_commit.author.date(),parent_commit.clone());
+                    let flag = self.flags.entry(curr_com_id).or_default().get(0).unwrap().clone();
+                    self.flags.entry(parent_id.clone()).or_default().push(flag);
+
+            }
+        }
+        res
     }
 }
