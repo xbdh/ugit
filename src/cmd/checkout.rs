@@ -64,21 +64,10 @@ impl Checkout {
             return;
         }
 
-        let head_commit = database.load_commit(&head);
-        let tree_oid = &head_commit.tree_id;
-        let head_tree = database.load_tree(&tree_oid, PathBuf::new());
-
-        let mut head_tree_entries_list = head_tree.entries_list;
-
-        let target_commit = database.load_commit(&target_commit_id);
-        let target_tree = database.load_tree(&target_commit.tree_id, PathBuf::new());
-
-        let mut target_tree_entries_list = target_tree.entries_list;
-
-        let tree_diff = compare_head_target(head_tree_entries_list, target_tree_entries_list);
+        let tree_diff = database.tree_diff(head.clone(), target_commit_id.clone());
         info!(
             "tree_diff between {} and {} : \n{:?}",
-            &head_commit.tree_id, &target_commit_id, tree_diff
+            &head, &target_commit_id, tree_diff
         );
 
         let migration = Migration::new(repo.clone(), tree_diff);
@@ -87,7 +76,7 @@ impl Checkout {
 
         refs.update_HEAD_with_oid(&target_commit_id);
 
-        println!("From Commit {} to {}", &head_commit.tree_id, &target_commit_id);
+        println!("From Commit {} to {}", &head, &target_commit_id);
         println!("Switched to commit '{}'", target_commit_id);
         //You are in 'detached HEAD' state. You can look around, make experimental
         // changes and commit them, and you can discard any commits you make in this
@@ -97,41 +86,4 @@ impl Checkout {
         and you can discard any commits you make in this state without impacting any branches by switching back to a branch.")
     }
 
-}
-
-fn compare_head_target(
-    head_tree: IndexMap<PathBuf, Entry>,
-    target_tree: IndexMap<PathBuf, Entry>,
-) -> IndexMap<PathBuf, (GHash, GHash)> {
-    let mut changes: IndexMap<PathBuf, (GHash, GHash)> = IndexMap::new();
-
-    for (path, entry) in head_tree.iter() {
-        if target_tree.contains_key(path) {
-            let target_entry = target_tree.get(path).unwrap();
-            if entry.object_id() != target_entry.object_id() {
-                changes.insert(
-                    path.clone(),
-                    (
-                        entry.object_id().to_string(),
-                        target_entry.object_id().to_string(),
-                    ),
-                );
-            }
-        } else {
-            changes.insert(
-                path.clone(),
-                (entry.object_id().to_string(), "".to_string()),
-            );
-        }
-    }
-
-    for (path, entry) in target_tree.iter() {
-        if !head_tree.contains_key(path) {
-            changes.insert(
-                path.clone(),
-                ("".to_string(), entry.object_id().to_string()),
-            );
-        }
-    }
-    changes
 }

@@ -66,9 +66,13 @@ pub enum Command {
     #[clap(name = "log")]
     LogCmd(LogArgs),
 
+    #[clap(about = "t a file")]
+    #[clap(name = "t")]
+    Test,
+
     #[clap(about = "merge a file")]
     #[clap(name = "merge")]
-    Test,
+    MergeCmd(MergeArgs),
 }
 #[derive(Args, Debug, Clone)]
 pub struct InitArgs {
@@ -121,6 +125,11 @@ pub struct LogArgs {
 
     #[clap(short, long)]
     pub exclude: bool,
+}
+
+#[derive(Args, Debug)]
+pub struct MergeArgs {
+    pub branch_name: String,
 }
 
 impl Command {
@@ -195,8 +204,9 @@ impl Command {
                 let log = Log::new(root_path);
                 log.run(brs,exclude);
             }
-            Command::Test => {
-
+            Command::MergeCmd(merge_args)=> {
+                info!("merge_args: {:?}", merge_args);
+                // let branch_name = merge_args.branch_name.clone();
             }
             // ignore
             _ => {}

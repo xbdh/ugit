@@ -37,7 +37,8 @@ impl Log {
             let br2 = brs[1].clone();
             let hash2 = refs.get_branch_hash(&br2);
             // let mut ancestor = CommonAncestors::new(db,hash1.clone(),hash2.clone());
-            // let c=ancestor.run();
+            // let c=ancestor.best_anctor();
+            //
             // println!("ancestor {:?}",c);
             let log_list=LogListExclude::new(repo.clone(),hash1,hash2);
             for commit in log_list.into_iter() {

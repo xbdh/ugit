@@ -93,13 +93,20 @@ impl Iterator for LogListUnion {
 
             let parent_id = commit.clone().parent_id();
             if let Some(parent_id) = parent_id {
-                let parent_commit = self.load_commit(&parent_id);
-                if !self.flags.entry(parent_id.clone()).or_default().contains(&Flag::Seen) {
-                    self.queue.insert(Max-parent_commit.author.date(),parent_commit.clone());
-                    self.commits.insert(parent_id.clone(),parent_commit.clone());
+                for id in parent_id.clone() {
+                    let parent_commit = self.load_commit(&id);
+                    if !self.flags.entry(id.clone()).or_default().contains(&Flag::Seen) {
+                        self.queue.insert(Max-parent_commit.author.date(),parent_commit.clone());
+                        self.commits.insert(id.clone(),parent_commit.clone());
+                    }
                 }
-
-                self.flags.insert(parent_id.clone(),vec![Flag::Seen]);
+                // let parent_commit = self.load_commit(&parent_id);
+                // if !self.flags.entry(parent_id.clone()).or_default().contains(&Flag::Seen) {
+                //     self.queue.insert(Max-parent_commit.author.date(),parent_commit.clone());
+                //     self.commits.insert(parent_id.clone(),parent_commit.clone());
+                // }
+                //
+                // self.flags.insert(parent_id.clone(),vec![Flag::Seen]);
             }
         }
        // info!("branch list item is: {:?}",cc);
@@ -194,25 +201,47 @@ impl Iterator for LogListExclude {
 
             let parent_id = commit.clone().parent_id();
             if let Some(parent_id) = parent_id {
-                if self.flags.entry(curr_com_id.clone()).or_default().contains(&Flag::Uninteresting) {
-                    self.flags.entry(parent_id.clone()).or_default().push(Flag::Uninteresting);
+                for id in parent_id.clone() {
+                    if self.flags.entry(curr_com_id.clone()).or_default().contains(&Flag::Uninteresting) {
+                        self.flags.entry(id.clone()).or_default().push(Flag::Uninteresting);
 
-                    let parent_commit = self.load_commit(&parent_id);
-                    self.queue.insert(Max - parent_commit.author.date(), parent_commit.clone());
-                    self.commits.insert(parent_id.clone(), parent_commit.clone());
+                        let parent_commit = self.load_commit(&id);
+                        self.queue.insert(Max - parent_commit.author.date(), parent_commit.clone());
+                        self.commits.insert(id.clone(), parent_commit.clone());
 
 
-                    self.flags.entry(parent_id.clone()).or_default().push(Flag::Seen);
-                    continue;
-                }else{
-                    let parent_commit = self.load_commit(&parent_id);
-                    self.queue.insert(Max - parent_commit.author.date(), parent_commit.clone());
-                    self.commits.insert(parent_id.clone(), parent_commit.clone());
+                        self.flags.entry(id.clone()).or_default().push(Flag::Seen);
+                        continue;
+                    }else{
+                        let parent_commit = self.load_commit(&id);
+                        self.queue.insert(Max - parent_commit.author.date(), parent_commit.clone());
+                        self.commits.insert(id.clone(), parent_commit.clone());
 
-                    self.flags.entry(parent_id.clone()).or_default().push(Flag::Seen);
-                    cc= commit.clone();
-                    return Some(cc);
+                        self.flags.entry(id.clone()).or_default().push(Flag::Seen);
+                        cc= commit.clone();
+                        return Some(cc);
+                    }
                 }
+
+                // if self.flags.entry(curr_com_id.clone()).or_default().contains(&Flag::Uninteresting) {
+                //     self.flags.entry(parent_id.clone()).or_default().push(Flag::Uninteresting);
+                //
+                //     let parent_commit = self.load_commit(&parent_id);
+                //     self.queue.insert(Max - parent_commit.author.date(), parent_commit.clone());
+                //     self.commits.insert(parent_id.clone(), parent_commit.clone());
+                //
+                //
+                //     self.flags.entry(parent_id.clone()).or_default().push(Flag::Seen);
+                //     continue;
+                // }else{
+                //     let parent_commit = self.load_commit(&parent_id);
+                //     self.queue.insert(Max - parent_commit.author.date(), parent_commit.clone());
+                //     self.commits.insert(parent_id.clone(), parent_commit.clone());
+                //
+                //     self.flags.entry(parent_id.clone()).or_default().push(Flag::Seen);
+                //     cc= commit.clone();
+                //     return Some(cc);
+                // }
             }
         }
         //info!("exclude branch list item is: {:?}", cc);
@@ -253,17 +282,32 @@ impl CommonAncestors {
         (date.clone(), commit.clone())
     }
 
-    pub fn run(&mut self) -> GHash {
+   pub fn best_anctor(&mut self) -> GHash {
+        let mut many_ancestor = self.get_manay_ancestor();
+        // compare each two from many_ancestor
+        if many_ancestor.len() == 1 {
+            return many_ancestor[0].clone();
+        }
+        // todo: compare each two from many_ancestor
+        // 比较every two from many_ancestor ,delte the result from many_ancestor
+        // at last ,may there left one or two or many
+        // real git use a recursive way to do this
+        // i not implement yet
+            return many_ancestor[0].clone();
 
-        let mut res= "".to_string();
+
+    }
+
+    pub fn get_manay_ancestor(&mut self) -> Vec<GHash> {
+        //let mut res= "".to_string();
+        let mut manay_ancestor = vec![];
         while !self.queue.is_empty() {
             // info!("curr queue is{:?}\n",self.queue.clone());
             // info!("curr flags is{:?}\n",self.flags.clone());
             // if flags contains both parent one and parent two
             for (k,v) in self.flags.clone() {
                 if v.contains(&Flag::ParentOne)&&v.contains(&Flag::ParentTwo)  {
-                    res = k.clone();
-                    return res;
+                   manay_ancestor.push(k.clone());
                 }
             }
 
@@ -273,14 +317,19 @@ impl CommonAncestors {
 
             let parent_id = commit.clone().parent_id();
             if let Some(parent_id) = parent_id {
-
-                    let parent_commit = self.db.load_commit(&parent_id);
-                    self.queue.insert(Max-parent_commit.author.date(),parent_commit.clone());
-                    let flag = self.flags.entry(curr_com_id).or_default().get(0).unwrap().clone();
-                    self.flags.entry(parent_id.clone()).or_default().push(flag);
+                    for id in parent_id.clone() {
+                       let parent_commit = self.db.load_commit(&id);
+                        self.queue.insert(Max-parent_commit.author.date(),parent_commit.clone());
+                        let flag = self.flags.entry(curr_com_id.clone()).or_default().get(0).unwrap().clone();
+                        self.flags.entry(id.clone()).or_default().push(flag);
+                    }
+                    // let parent_commit = self.db.load_commit(&parent_id);
+                    // self.queue.insert(Max-parent_commit.author.date(),parent_commit.clone());
+                    // let flag = self.flags.entry(curr_com_id).or_default().get(0).unwrap().clone();
+                    // self.flags.entry(parent_id.clone()).or_default().push(flag);
 
             }
         }
-        res
+        manay_ancestor
     }
 }

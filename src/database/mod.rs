@@ -160,7 +160,7 @@ impl Database {
     }
 
     pub fn new_commit(
-        parent_id: Option<GHash>,
+        parent_id: Option<Vec<GHash>>,
         tree_id: GHash,
         author: Author,
         message: &str,
@@ -346,9 +346,60 @@ impl Database {
         tree.object_id = hash.to_string();
         tree
     }
+
+    pub fn tree_diff(&self, old_c: GHash, new_c: GHash) -> IndexMap<PathBuf, (GHash, GHash)> {
+        //let mut changes: IndexMap<PathBuf, (GHash, GHash)> = IndexMap::new();
+        let old_commit = self.load_commit(old_c.as_str());
+        let new_commit = self.load_commit(new_c.as_str());
+        let o_tree_oid = &old_commit.tree_id;
+        let n_tree_oid = &new_commit.tree_id;
+        let old_tree = self.load_tree(o_tree_oid, PathBuf::new());
+        let new_tree = self.load_tree(n_tree_oid, PathBuf::new());
+        let changes = compare_head_target(old_tree.entries_list, new_tree.entries_list);
+
+
+        changes
+    }
 }
+   
 // eg
 //Tree { entries: {"a": SubTree(Tree { entries: {"b": SubTree(Tree { entries: {"c.txt": Entry(Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" })},
 // object_id: "cf67e9ef3a0fc6d858423fc177f2fbbe985a6f17", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} })},
 // object_id: "624db7b0ba3f4677714c28ff3351a0a6f63306ef", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} })},
 // object_id: "ded3b76a89198e962945b0dca402a64420bceabf", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} }
+fn compare_head_target(
+    head_tree: IndexMap<PathBuf, Entry>,
+    target_tree: IndexMap<PathBuf, Entry>,
+) -> IndexMap<PathBuf, (GHash, GHash)> {
+    let mut changes: IndexMap<PathBuf, (GHash, GHash)> = IndexMap::new();
+
+    for (path, entry) in head_tree.iter() {
+        if target_tree.contains_key(path) {
+            let target_entry = target_tree.get(path).unwrap();
+            if entry.object_id() != target_entry.object_id() {
+                changes.insert(
+                    path.clone(),
+                    (
+                        entry.object_id().to_string(),
+                        target_entry.object_id().to_string(),
+                    ),
+                );
+            }
+        } else {
+            changes.insert(
+                path.clone(),
+                (entry.object_id().to_string(), "".to_string()),
+            );
+        }
+    }
+
+    for (path, entry) in target_tree.iter() {
+        if !head_tree.contains_key(path) {
+            changes.insert(
+                path.clone(),
+                ("".to_string(), entry.object_id().to_string()),
+            );
+        }
+    }
+    changes
+}
