@@ -1,11 +1,11 @@
 pub mod author;
 pub mod blob;
-pub mod gcommit;
+pub mod commit;
 pub mod tree;
 
 use crate::database::author::Author;
-use crate::database::blob::Blob;
-use crate::database::gcommit::GCommit;
+pub(crate) use crate::database::blob::Blob;
+use crate::database::commit::Commit;
 use crate::database::tree::{Tree, TreeEntry};
 use flate2::read::ZlibDecoder;
 use flate2::write::ZlibEncoder;
@@ -22,10 +22,12 @@ use tracing_subscriber::fmt::format;
 
 use crate::entry::Entry;
 
-pub fn blob_from(data: &str) -> Blob {
-    Blob::from(data)
-}
-pub type GHash = String;
+// pub fn blob_from(data: &str) -> Blob {
+//     Blob::from(data)
+// }
+
+
+
 
 #[derive(Debug, Clone)]
 pub struct Database {
@@ -37,7 +39,7 @@ impl Database {
         Self { path_name }
     }
 
-    pub fn hash_object(&self, data: &str, type_: &str) -> GHash {
+    pub fn hash_object(&self, data: &str, type_: &str) -> String{
         let mut content = vec![];
         content.extend_from_slice(type_.as_bytes());
         content.push(b' ');
@@ -53,50 +55,69 @@ impl Database {
         hash
     }
 
-    pub fn store_blob(&self, blob: &mut Blob) -> GHash {
-        //let content = format!("{} {}\0{}", blob.type_(), blob.data.len(), blob.data);
-        //println!("blob content: {}", content);
+    pub fn store(&self, mut object: impl  GitObject) -> String {
         let mut content = vec![];
-        content.extend_from_slice(blob.type_().as_bytes());
+        content.extend_from_slice(object.object_type().as_bytes());
         content.push(b' ');
-        content.extend_from_slice(blob.data.len().to_string().as_bytes());
+        content.extend_from_slice(object.to_string().len().to_string().as_bytes());
         content.push(b'\0');
-        content.extend_from_slice(blob.data.as_bytes());
+        content.extend_from_slice(&object.to_string());
 
         let mut hasher = sha1::Sha1::new();
         hasher.update(content.clone());
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
-        blob.set_object_id(hash.clone());
+
+        object.set_object_id(hash.as_str());
+        self.write_object(&hash, &content);
+        hash
+
+    }
+
+    pub fn store_blob(&self, blob: &mut Blob) -> String {
+        //let content = format!("{} {}\0{}", blob.type_(), blob.data.len(), blob.data);
+        //println!("blob content: {}", content);
+        let mut content = vec![];
+        content.extend_from_slice(blob.object_type().as_bytes());
+        content.push(b' ');
+        content.extend_from_slice(blob.data.len().to_string().as_bytes());
+        content.push(b'\0');
+        content.extend_from_slice(&blob.data);
+
+        let mut hasher = sha1::Sha1::new();
+        hasher.update(content.clone());
+        let hash = hasher.finalize();
+        let hash = format!("{:x}", hash);
+        blob.set_object_id(hash.as_str());
 
         self.write_object(&hash, &content);
         hash
     }
 
-    pub fn store_tree(&self, tree: &mut Tree) -> GHash {
+    pub fn store_tree(&self, tree: &mut Tree) ->String {
         //let content = format!("{} {}\0{}", tree.type_(), tree.len(), tree.to_string());
-        let mut vv = vec![];
-        vv.extend_from_slice(tree.type_().as_bytes());
-        vv.push(b' ');
-        vv.extend_from_slice(tree.len().to_string().as_bytes());
+        let mut content = vec![];
+        content.extend_from_slice(tree.object_type().as_bytes());
+        content.push(b' ');
+        content.extend_from_slice(tree.len().to_string().as_bytes());
 
-        vv.push(b'\0');
-        vv.extend_from_slice(&tree.to_string());
+        content.push(b'\0');
+        content.extend_from_slice(&tree.to_string());
 
         //println!("tree content: {}", vv);
         let mut hasher = sha1::Sha1::new();
-        hasher.update(vv.clone());
+        hasher.update(content.clone());
         let hash = hasher.finalize();
         let hash = format!("{:x}", hash);
 
-        tree.set_object_id(hash.clone());
-        self.write_object(&hash, &vv);
+        tree.set_object_id(hash.as_str());
+        self.write_object(&hash, &content);
         hash
     }
 
-    pub fn store_commit(&self, commit: GCommit) -> GHash {
+    pub fn store_commit(&self, commit: Commit) -> String {
         let mut content = vec![];
-        content.extend_from_slice(commit.type_().as_bytes());
+        content.extend_from_slice(commit.object_type().as_bytes());
         content.push(b' ');
         content.extend_from_slice(commit.len().to_string().as_bytes());
         content.push(b'\0');
@@ -148,26 +169,26 @@ pub fn decompress(data: &[u8]) -> io::Result<Vec<u8>> {
     Ok(decompressed)
 }
 
-impl Database {
-    pub fn new_blob(data: String) -> Blob {
-        Blob::new(data)
-    }
-    pub fn new_tree(entrys: Vec<Entry>) -> Tree {
-        Tree::new(entrys)
-    }
-    pub fn new_author(name: &str, email: &str) -> author::Author {
-        Author::new(name, email)
-    }
-
-    pub fn new_commit(
-        parent_id: Option<Vec<GHash>>,
-        tree_id: GHash,
-        author: Author,
-        message: &str,
-    ) -> GCommit {
-        GCommit::new(parent_id, tree_id, author, message)
-    }
-}
+// impl Database {
+//     pub fn new_blob(data: Vec<u8>) -> Blob {
+//         Blob::new(data)
+//     }
+//     pub fn new_tree(entrys: Vec<Entry>) -> Tree {
+//         Tree::new(entrys)
+//     }
+//     pub fn new_author(name: &str, email: &str) -> author::Author {
+//         Author::new(name, email)
+//     }
+// 
+//     pub fn new_commit(
+//         parent_id: Option<Vec<String>>,
+//         tree_id: String,
+//         author: Author,
+//         message: &str,
+//     ) -> Commit {
+//         Commit::new(parent_id, tree_id.as_str(), author, message)
+//     }
+// }
 
 impl Database {
     pub fn read_object(&self, hash: &str) -> Vec<u8> {
@@ -192,11 +213,11 @@ impl Database {
         let len = type_and_len[1];
         let blob_data = iter.next().unwrap();
         let mut blob = Blob::from(blob_data);
-        blob.set_object_id(hash.to_string());
+        blob.set_object_id(&hash);
         blob
     }
 
-    pub fn load_commit(&self, hash: &str) -> GCommit {
+    pub fn load_commit(&self, hash: &str) -> Commit {
         //println!("load commit with hash:{}", hash);
         let content = self.read_object(hash);
         let content = String::from_utf8(content).unwrap();
@@ -206,12 +227,12 @@ impl Database {
         let type_ = type_and_len[0];
         let len = type_and_len[1];
         let commit_data = iter.next().unwrap();
-        let mut commit = GCommit::from(commit_data);
+        let mut commit = Commit::from(commit_data);
 
-        commit.set_object_id(hash.to_string());
+        commit.set_object_id(hash);
         commit
     }
-    pub fn find_a_commit(&self, part_hash: &str) -> Option<GHash> {
+    pub fn find_a_commit(&self, part_hash: &str) -> Option<String> {
         // find a file with part hash
         // find a commit with hash
         let start_dir = part_hash[0..2].to_string();
@@ -347,10 +368,10 @@ impl Database {
         tree
     }
 
-    pub fn tree_diff(&self, old_c: GHash, new_c: GHash) -> IndexMap<PathBuf, (GHash, GHash)> {
+    pub fn tree_diff(&self, old_c: &str, new_c: &str) -> IndexMap<PathBuf, (String, String)> {
         //let mut changes: IndexMap<PathBuf, (GHash, GHash)> = IndexMap::new();
-        let old_commit = self.load_commit(old_c.as_str());
-        let new_commit = self.load_commit(new_c.as_str());
+        let old_commit = self.load_commit(old_c);
+        let new_commit = self.load_commit(new_c);
         let o_tree_oid = &old_commit.tree_id;
         let n_tree_oid = &new_commit.tree_id;
         let old_tree = self.load_tree(o_tree_oid, PathBuf::new());
@@ -370,8 +391,8 @@ impl Database {
 fn compare_head_target(
     head_tree: IndexMap<PathBuf, Entry>,
     target_tree: IndexMap<PathBuf, Entry>,
-) -> IndexMap<PathBuf, (GHash, GHash)> {
-    let mut changes: IndexMap<PathBuf, (GHash, GHash)> = IndexMap::new();
+) -> IndexMap<PathBuf, (String, String)> {
+    let mut changes: IndexMap<PathBuf, (String,String)> = IndexMap::new();
 
     for (path, entry) in head_tree.iter() {
         if target_tree.contains_key(path) {
@@ -403,3 +424,13 @@ fn compare_head_target(
     }
     changes
 }
+
+pub trait GitObject {
+    fn object_id(&self) -> String;
+    fn set_object_id(&mut self, oid: &str);
+    fn object_type(&self) -> String;
+    //fn to_string(&self) -> String;
+
+    fn to_string(&self) -> Vec<u8>;
+}
+

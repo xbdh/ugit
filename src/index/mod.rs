@@ -1,27 +1,27 @@
 use std::array::from_mut;
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::database::GHash;
 use crate::index::index_entry::IndexEntry;
 use sha1::Digest;
 use std::fs::Metadata;
 use std::path::PathBuf;
 use std::sync::RwLock;
+use tracing::info;
 
 pub mod index_entry;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Index {
     pub pathname: PathBuf,
     // need sort by path ,pathbuf is not sortable
     pub index_entrys: BTreeMap<String, IndexEntry>,
     // nested ->nested/nested.txt ,nested/nested2/nested2.txt
     // nested/inner ->nested/inner/nested.txt ,nested/inner/nested2/nested2.txt
-    pub parent: BTreeMap<String, BTreeSet<String>>,
+    pub parents: BTreeMap<String, BTreeSet<String>>,
 
     pub keys: BTreeSet<String>,
     pub changed: bool,
-    lock: RwLock<()>,
+    //lock: RwLock<()>,
 }
 
 impl Index {
@@ -29,10 +29,10 @@ impl Index {
         Self {
             pathname,
             index_entrys: BTreeMap::new(),
-            parent: BTreeMap::new(),
+            parents: BTreeMap::new(),
             keys: BTreeSet::new(),
             changed: false,
-            lock: RwLock::new(()),
+            //lock: RwLock::new(()),
         }
     }
     fn insert_key(&mut self, pathname: String) {
@@ -49,25 +49,25 @@ impl Index {
         }
     }
     fn get_all_parent(&self) -> BTreeMap<String, BTreeSet<String>> {
-        self.parent.clone()
+        self.parents.clone()
     }
     fn get_parent_by_name(&self, pathname: String) -> Option<BTreeSet<String>> {
-        let e = self.parent.get(&pathname);
+        let e = self.parents.get(&pathname);
         match e {
             Some(e) => Some(e.clone()),
             None => None,
         }
     }
     fn remove_parent_in_set(&mut self, parent_path: String, path_in_set: String) {
-        let mut set = self.parent.get_mut(&parent_path).unwrap();
+        let mut set = self.parents.get_mut(&parent_path).unwrap();
         set.remove(&path_in_set);
         if set.is_empty() {
-            self.parent.remove(&parent_path);
+            self.parents.remove(&parent_path);
         }
     }
 
-    pub fn add(&mut self, pathname: PathBuf, oid: GHash, stat: Metadata) {
-        let mut index_entry = IndexEntry::new(pathname.clone(), oid, stat);
+    pub fn add(&mut self, pathname: PathBuf, oid:&str, stat: Metadata) {
+        let mut index_entry = IndexEntry::new(pathname.clone(), oid.to_string(), stat);
 
         self.remove_conflict(&index_entry);
 
@@ -117,7 +117,7 @@ impl Index {
 
     // pathnames:is a dir
     fn remove_children(&mut self, pathname: String) {
-        if !self.parent.contains_key(&pathname) {
+        if !self.parents.contains_key(&pathname) {
             return;
         }
 
@@ -135,7 +135,7 @@ impl Index {
     }
 
     pub fn write_updates(&mut self) {
-        let _guard = self.lock.write().unwrap();
+       // let _guard = self.lock.write().unwrap();
         let entries = self.index_entrys.clone();
         //println!("entries: {:?}", entries);
         let mut content = vec![];
@@ -181,11 +181,12 @@ impl Index {
         self.changed = false;
     }
 
-    pub fn load(&mut self) -> BTreeMap<String, IndexEntry> {
-        let _guard = self.lock.read().unwrap();
+    pub fn load_for_update(&mut self) -> BTreeMap<String, IndexEntry> {
+        //let _guard = self.lock.read().unwrap();
         let mut index_entrys = BTreeMap::new();
-        let mut parent = BTreeMap::new();
+        let mut parents_map = BTreeMap::new();
         let mut keys = BTreeSet::new();
+        info!("loading index from {:?}", self.pathname.clone());
         let content = std::fs::read(self.pathname.clone()).unwrap();
         if content.len() == 0 {
             return index_entrys;
@@ -324,7 +325,7 @@ impl Index {
             index_entrys.insert(index_entry.path.clone(), index_entry.clone());
 
             for parent_dir in index_entry.clone().parent_dir() {
-                let mut set = parent.entry(parent_dir.clone()).or_insert(BTreeSet::new());
+                let mut set = parents_map.entry(parent_dir.clone()).or_insert(BTreeSet::new());
                 set.insert(index_entry.path.clone());
             }
             keys.insert(index_entry.path.clone());
@@ -347,7 +348,7 @@ impl Index {
         }
         offset += 20;
         self.index_entrys = index_entrys.clone();
-        self.parent = parent.clone();
+        self.parents = parents_map.clone();
         self.keys = keys.clone();
         index_entrys
     }
@@ -368,7 +369,7 @@ impl Index {
     pub fn keys(&self) -> &BTreeSet<String> {
         &self.keys
     }
-    pub fn parent(&self) -> &BTreeMap<String, BTreeSet<String>> {
-        &self.parent
+    pub fn parents(&self) -> &BTreeMap<String, BTreeSet<String>> {
+        &self.parents
     }
 }

@@ -34,3 +34,4 @@ tracing = "0.1.41"
 tracing-subscriber ={version = "0.3.19"}
 termcolor = "1.4.1"
 similar = "2.7.0"
+atty = "0.2.14"

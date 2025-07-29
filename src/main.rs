@@ -9,7 +9,7 @@
 #![allow(unused_assignments)]
 use clap::Parser;
 
-use ugit::cli::Cli;
+use ugit::cli::{Cli, CommandFactory};
 
 fn main() {
     tracing_subscriber::fmt()
@@ -17,6 +17,7 @@ fn main() {
         //.with_thread_names(true)
         .init();
     let cli = Cli::parse();
-    let sub_cmd = cli.sub_cmd;
-    sub_cmd.execute();
+    let mut command = CommandFactory::create_command(cli);
+    let exit_code = command.execute();
+    std::process::exit(exit_code)
 }

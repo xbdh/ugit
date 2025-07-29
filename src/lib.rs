@@ -9,12 +9,12 @@
 #![allow(unused_assignments)]
 
 pub mod cli;
-pub mod cmd;
+pub mod command;
 pub mod database;
 pub mod entry;
 pub mod index;
 pub mod refs;
 
-pub mod repo;
+pub mod repository;
 pub mod util;
 pub mod workspace;

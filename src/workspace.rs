@@ -14,6 +14,7 @@ impl Workspace {
     //     vec![".git".into(), ".".into(), "..".into()]
     // }
     // todo: file or dir not exists. check if file is readable
+    // list absolute path files in a dir and return relative path
     pub fn list_files(&self, file_or_dir: PathBuf) -> Vec<PathBuf> {
         let mut dir_entrys = vec![];
         let mut relative_path = vec![];
@@ -54,19 +55,20 @@ impl Workspace {
         }
     }
 
-    pub fn read_file(&self, path: &PathBuf) -> String {
-        fs::read_to_string(self.path_name.join(path)).unwrap()
+    pub fn read_file(&self, path: PathBuf) -> Vec<u8> {
+        // read file content and return as Vec<u8>
+       fs::read(self.path_name.join(path)).unwrap()
     }
 
-    pub fn stat_file(&self, path: &PathBuf) -> fs::Metadata {
+    pub fn stat_file(&self, path: PathBuf) -> fs::Metadata {
         fs::metadata(self.path_name.join(path)).unwrap()
     }
 
-    pub fn write_file(&self, path: &PathBuf, content: &String) {
+    pub fn write_file(&self, path: PathBuf, content: &str) {
         fs::write(self.path_name.join(path), content).unwrap();
     }
 
-    pub fn remove_file(&self, path: &PathBuf) {
+    pub fn remove_file(&self, path: PathBuf) {
         fs::remove_file(self.path_name.join(path)).unwrap();
     }
 

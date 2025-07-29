@@ -5,13 +5,13 @@ use std::io;
 use std::io::{BufRead, Read};
 use std::path::PathBuf;
 
-use crate::database::GHash;
 use indexmap::IndexMap;
+use crate::database::GitObject;
 
 #[derive(Debug, Clone, Default)]
 pub struct Tree {
     pub(crate) entries: IndexMap<PathBuf, TreeEntry>, //
-    pub(crate) object_id: GHash,
+    pub(crate) object_id: String,
     pub entries_list: IndexMap<PathBuf, Entry>, // 为了方便遍历，增加一个list path is relative full path  a/b/c.txt
 }
 
@@ -44,45 +44,23 @@ impl Tree {
         }
     }
 
-    pub fn type_(&self) -> &str {
-        "tree"
-    }
-
-    pub fn get_object_id(&self) -> &str {
-        &self.object_id
-    }
-    pub fn set_object_id(&mut self, object_id: GHash) {
-        self.object_id = object_id;
-    }
+    // pub fn type_(&self) -> &str {
+    //     "tree"
+    // }
+    // 
+    // pub fn object_id(&self) ->String{
+    //    self.object_id.clone()
+    // }
+    // pub fn set_object_id(&mut self, object_id: &str) {
+    //     
+    //     self.object_id = object_id.to_string();
+    // }
 
     pub fn get_entries(&self) -> &IndexMap<PathBuf, TreeEntry> {
         &self.entries
     }
 
-    pub fn to_string(&self) -> Vec<u8> {
-        let mut content = vec![];
-
-        for (path, entry) in self.entries.iter() {
-            match entry {
-                TreeEntry::Entry(entry) => {
-                    content.extend_from_slice(entry.mode().as_bytes());
-                    content.push(b' ');
-                    content.extend_from_slice(path.to_str().unwrap().as_bytes());
-                    content.push(b'\0');
-                    content.extend_from_slice(&hex::decode(entry.object_id()).unwrap());
-                }
-                TreeEntry::SubTree(tree) => {
-                    content.extend_from_slice(tree.mode().as_bytes());
-                    content.push(b' ');
-                    content.extend_from_slice(path.to_str().unwrap().as_bytes());
-                    content.push(b'\0');
-                    content.extend_from_slice(&hex::decode(tree.object_id.clone()).unwrap());
-                }
-            }
-        }
-
-        content
-    }
+   
     pub fn len(&self) -> usize {
         self.to_string().len()
     }
@@ -191,6 +169,52 @@ fn add_entry(entriesmp: &mut IndexMap<PathBuf, TreeEntry>, parent: Vec<PathBuf>,
 
         //这样 p 为a a/b a/b/c
     }
+}
+
+impl GitObject for Tree {
+    fn object_id(&self) -> String {
+        self.object_id.clone()
+    }
+
+    fn set_object_id(&mut self, object_id: &str) {
+        self.object_id = object_id.to_string();
+    }
+    fn object_type(&self) -> String {
+        "tree".to_string()
+    }
+
+     fn to_string(&self) -> Vec<u8> {
+        let mut content = vec![];
+
+        for (path, entry) in self.entries.iter() {
+            match entry {
+                TreeEntry::Entry(entry) => {
+                    content.extend_from_slice(entry.mode().as_bytes());
+                    content.push(b' ');
+                    content.extend_from_slice(path.to_str().unwrap().as_bytes());
+                    content.push(b'\0');
+                    content.extend_from_slice(&hex::decode(entry.object_id()).unwrap());
+                }
+                TreeEntry::SubTree(tree) => {
+                    content.extend_from_slice(tree.mode().as_bytes());
+                    content.push(b' ');
+                    content.extend_from_slice(path.to_str().unwrap().as_bytes());
+                    content.push(b'\0');
+                    content.extend_from_slice(&hex::decode(tree.object_id.clone()).unwrap());
+                }
+            }
+        }
+
+        content
+    }
+
+    // fn to_string(&self) -> Vec<u8> {
+    //     self.to_string()
+    // }
+    // 
+    // fn len(&self) -> usize {
+    //     self.len()
+    // }
 }
 
 // can not use this utf8eror

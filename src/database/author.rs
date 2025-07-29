@@ -6,14 +6,14 @@ use std::str::FromStr;
 pub struct Author {
     name: String,
     email: String,
-    date: u32,
+    date: DateTime<Local>,
 }
 impl Author {
     pub fn new(name: &str, email: &str) -> Self {
         Self {
             name: name.to_string(),
             email: email.to_string(),
-            date: 0,
+            date: Local::now(),
         }
     }
     pub fn to_string(&self) -> Vec<u8> {
@@ -31,7 +31,7 @@ impl Author {
         v
     }
 
-    pub fn date(&self) -> u32 {
+    pub fn date(&self) -> DateTime<Local> {
         self.date
     }
 
@@ -40,6 +40,18 @@ impl Author {
     }
     pub fn email(&self) -> &str {
         &self.email
+    }
+
+    pub fn short_date(&self) -> String {
+        // return date with only year, month and day
+      // e.g. "2023-10-01"
+        self.date.format("%Y-%m-%d").to_string()
+    }
+
+    pub fn long_date(&self) -> String {
+        // return date with full format
+        // e.g. "2023-10-01 12:34:56 +0800"
+        self.date.format("%Y-%m-%d %H:%M:%S %z").to_string()
     }
 }
 
@@ -51,7 +63,10 @@ impl From<&str> for Author {
         // remmove < and > from email
         email.remove(0);
         email.remove(email.len() - 1);
-        let date = u32::from_str(v[3]).unwrap();
+        //let date = u32::from_str(v[3]).unwrap();
+        // convert v[3] v[4] date to DateTime<Local>
+        let date_str = format!("{} {}", v[3], v[4]);
+        let date = DateTime::from_str(&date_str).unwrap_or_else(|_| Local::now());
 
         Self {
             name: v[1].to_string(),

@@ -1,33 +1,59 @@
 use crate::database::author::Author;
-use crate::database::GHash;
+use crate::database::GitObject;
 
 #[derive(Debug, Clone, Default)]
-pub struct GCommit {
-    oject_id: GHash,
-    parent_id: Option<Vec<GHash>>,// 0,1.2
-    pub tree_id: GHash,
+pub struct Commit {
+    oject_id: String,
+    
+    parent_id: Option<Vec<String>>,// 0,1.2
+    pub tree_id: String,
     pub author: Author,
     pub message: String,
 }
 
-impl GCommit {
-    pub fn new(parent_id: Option<Vec<GHash>>, tree_id: GHash, author: Author, message: &str) -> Self {
+impl Commit {
+    pub fn new(parent_id: Option<Vec<String>>, tree_id:&str, author: Author, message: &str) -> Self {
         Self {
             parent_id,
             oject_id: "".to_string(),
-            tree_id,
+            tree_id: tree_id.to_string(),
             author,
             message: message.to_string(),
         }
     }
-    pub fn type_(&self) -> &str {
-        "commit"
+
+    
+
+    pub fn len(&self) -> usize {
+        self.to_string().len()
     }
-    pub fn set_object_id(&mut self, object_id: GHash) {
-        self.oject_id = object_id;
+    
+    pub fn parent_id(&self) -> Option<Vec<String>> {
+        self.parent_id.clone()
+    }
+   
+    pub fn message(&self) -> String {
+        self.message.clone()
+    }
+    pub fn author(&self) -> Author {
+        self.author.clone()
+    }
+}
+
+impl GitObject for Commit {
+    fn object_id(&self) -> String {
+        self.oject_id.clone()
     }
 
-    pub fn to_string(&self) -> Vec<u8> {
+    fn set_object_id(&mut self, oid: &str) {
+        self.oject_id = oid.to_string();
+    }
+
+    fn object_type(&self) -> String {
+        "commit".to_string()
+    }
+
+     fn to_string(&self) -> Vec<u8> {
         let mut content = vec![];
         content.extend_from_slice("tree ".as_bytes());
         // content.push(b' ');
@@ -63,26 +89,10 @@ impl GCommit {
 
         content
     }
-
-    pub fn len(&self) -> usize {
-        self.to_string().len()
-    }
     
-    pub fn parent_id(&self) -> Option<Vec<GHash>> {
-        self.parent_id.clone()
-    }
-    pub fn object_id(&self) -> GHash {
-        self.oject_id.clone()
-    }
-    pub fn message(&self) -> String {
-        self.message.clone()
-    }
-    pub fn author(&self) -> Author {
-        self.author.clone()
-    }
 }
 
-impl From<&str> for GCommit {
+impl From<&str> for Commit {
     fn from(v: &str) -> Self {
         //  len==7 or6 8
         //  ["tree fe002358f136fdcc8fbfd7a8cdc687fee7ee6429",

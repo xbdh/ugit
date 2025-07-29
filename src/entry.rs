@@ -1,4 +1,4 @@
-use crate::database::GHash;
+
 use std::fmt::Debug;
 use std::fs::Metadata;
 use std::os::unix::fs::PermissionsExt;
@@ -7,7 +7,7 @@ use std::path::PathBuf;
 #[derive(Clone)]
 pub struct Entry {
     filename: PathBuf,
-    object_id: GHash,
+    object_id:String,
     mode: String,
     // pub(crate) stat: Option<Metadata>, // 对于tree.rs的From trait 路径不完整，无法获取，而且也没必要。
     //pub mode: Option<String>
@@ -88,7 +88,7 @@ impl Entry {
         pp
     }
 
-    pub fn set_object_id(&mut self, object_id: GHash) {
-        self.object_id = object_id;
+    pub fn set_object_id(&mut self, object_id: &str) {
+        self.object_id = object_id.to_string();
     }
 }
