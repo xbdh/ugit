@@ -55,7 +55,7 @@ impl Database {
         hash
     }
 
-    pub fn store(&self, mut object: impl  GitObject) -> String {
+    pub fn store(&self, object: &mut impl  GitObject)  {
         let mut content = vec![];
         content.extend_from_slice(object.object_type().as_bytes());
         content.push(b' ');
@@ -70,7 +70,7 @@ impl Database {
 
         object.set_object_id(hash.as_str());
         self.write_object(&hash, &content);
-        hash
+        //hash
 
     }
 
@@ -132,6 +132,7 @@ impl Database {
     }
 
     pub fn write_object(&self, hash: &str, content: &Vec<u8>) {
+        info!("write object with hash: {}  {:?}", hash,content);
         let object_path = self
             .path_name
             .join(hash[0..2].to_string())
@@ -179,7 +180,7 @@ pub fn decompress(data: &[u8]) -> io::Result<Vec<u8>> {
 //     pub fn new_author(name: &str, email: &str) -> author::Author {
 //         Author::new(name, email)
 //     }
-// 
+//
 //     pub fn new_commit(
 //         parent_id: Option<Vec<String>>,
 //         tree_id: String,

@@ -113,7 +113,7 @@ impl AddCommand {
         let stat = repo.workspace.stat_file(path.clone());
 
         let mut blob = Blob::new(data);
-        repo.database.store(blob.clone());
+        repo.database.store(&mut blob);
         repo.index.add(path.clone(), &blob.object_id(), stat);
 
         Ok(())
@@ -149,23 +149,25 @@ impl Command for AddCommand {
         paths.iter().for_each(|path| {
             self.add_to_index(path).unwrap()
         });
-        if paths.is_empty() {
-            return Err("Nothing specified, nothing added.".into());
-        }
 
-        for path in paths {
-            if !path.exists() {
-                eprintln!("pathspec '{}' did not match any files", path.display());
-                continue;
-            }
-
-            if !self.should_force_add(&path) {
-                self.base.verbose_println(&format!("The following paths are ignored: {}", path.display()));
-                continue;
-            }
-
-            self.add_to_index(&path)?;
-        }
+        // repo.index.load_for_update();
+        // if paths.is_empty() {
+        //     return Err("Nothing specified, nothing added.".into());
+        // }
+        //
+        // for path in paths {
+        //     if !path.exists() {
+        //         eprintln!("pathspec '{}' did not match any files", path.display());
+        //         continue;
+        //     }
+        //
+        //     if !self.should_force_add(&path) {
+        //         self.base.verbose_println(&format!("The following paths are ignored: {}", path.display()));
+        //         continue;
+        //     }
+        //
+        //     self.add_to_index(&path)?;
+        // }
 
         repo.index.write_updates();
         Ok(())

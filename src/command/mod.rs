@@ -10,6 +10,7 @@ pub mod switch;
 pub mod log;
 pub mod merge;
 pub mod base;
+pub mod shared;
 
 //基础trait，定义所有命令的共同接口
 pub trait Command {

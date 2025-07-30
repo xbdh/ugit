@@ -42,52 +42,6 @@ pub struct Repo {
 //
 // }
 
-pub fn write_commit(repo: & Repository, parents:Option<Vec<String>>,message: String) ->String{
-    let workspace = repo.workspace();
-    let database = repo.database();
-    let mut index = repo.index();
-    let refs = repo.refs();
-    let index_entrys = index.load_for_update();
-    // convert index_entrys to entrys
-    let mut entrys = vec![];
-
-    // read from index not from workspace
-    for (_, index_entry) in index_entrys.iter() {
-        let file_path = PathBuf::from(index_entry.path.clone());
-        let bhash = index_entry.oid.clone();
-        let entry_mode = index_entry.mode();
-        let mut mode = "100644";
-        if entry_mode & 0o100 == 0o100 {
-            mode = "100755"
-        } else {
-            mode = "100644"
-        }
-
-        let entry = Entry::new(file_path, &bhash, mode);
-        entrys.push(entry);
-    }
-
-    let mut tree = Tree::new(entrys);
-    //let ff=database.store_tree;
-    let func = |e: &mut Tree| {
-        database.store_tree(e);
-    };
-    tree.traverse(&func);
-
-    let tree_hash = tree.object_id();
-
-    let name = "rain";
-    let email = "1344535251@qq.com";
-    //let message = "first commit";
-    let author = Author::new(name, email);
-    
-    let commit = Commit::new(parents, &tree_hash, author, message.as_str());
-    
-    let commit_hash = database.store_commit(commit);
-    refs.update_HEAD(&commit_hash);
-    commit_hash
-    
-}
 
 
 // #[derive(Debug, Clone)]

@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use tracing::info;
 use crate::command::base::CommandBase;
 use crate::command::Command;
+use crate::command::commit::CommitCommand;
 // use crate::command::log::Log;
 // use crate::command::switch::Switch;
 
@@ -98,7 +99,7 @@ pub struct AddArgs {
 #[derive(Args, Debug)]
 pub struct CommitArgs {
     #[clap(help = "commit message")]
-    #[clap(short, long)]
+    #[clap(short = 'm', long)]
     pub message: String,
 }
 #[derive(Args, Debug)]
@@ -155,6 +156,8 @@ impl CommandFactory {
             // Commands::Status(args) => Box::new(StatusCommand::new(base, args)),
             // Commands::Log(args) => Box::new(LogCommand::new(base, args)),
             Commands::InitCmd(args) => Box::new(InitCommand::new(base, args)),
+
+            Commands::CommitCmd(args) => Box::new(CommitCommand::new(base, args)),
             _ => {
                 info!("Command not implemented yet: {:?}", cli.sub_cmd);
                // Default to AddCommand for now
