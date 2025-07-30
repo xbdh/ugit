@@ -5,14 +5,12 @@ use crate::database::commit::Commit;
 use crate::database::GitObject;
 use crate::database::tree::Tree;
 use crate::entry::Entry;
+use crate::index::Index;
 use crate::repository::Repository;
 
-pub fn write_commit(mut repo:Repository, parents:Option<Vec<String>>, message: String) ->String{
-    let workspace = repo.workspace();
-    let database = repo.database();
-    let mut index = repo.index();
-    let refs = repo.refs();
-    let index_entrys = repo.index.load_for_update();
+pub fn write_commit(mut index:Index, parents:Option<Vec<String>>, message: String) ->String{
+
+    let index_entrys = index.load_for_update();
     // convert index_entrys to entrys
     let mut entrys = vec![];
 

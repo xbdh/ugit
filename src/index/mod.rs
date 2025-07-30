@@ -5,64 +5,81 @@ use crate::index::index_entry::IndexEntry;
 use sha1::Digest;
 use std::fs::Metadata;
 use std::path::PathBuf;
-use std::sync::RwLock;
+use std::sync::{Arc, Mutex, RwLock};
 use tracing::info;
 
 pub mod index_entry;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Index {
     pub pathname: PathBuf,
     // need sort by path ,pathbuf is not sortable
-    pub index_entrys: BTreeMap<String, IndexEntry>,
+    pub index_entrys: Arc<Mutex<BTreeMap<String, IndexEntry>>>,
     // nested ->nested/nested.txt ,nested/nested2/nested2.txt
     // nested/inner ->nested/inner/nested.txt ,nested/inner/nested2/nested2.txt
-    pub parents: BTreeMap<String, BTreeSet<String>>,
+    pub parents: Arc<Mutex<BTreeMap<String, BTreeSet<String>>>>,
 
-    pub keys: BTreeSet<String>,
-    pub changed: bool,
+    pub keys: Arc<Mutex<BTreeSet<String>>>,
+    pub changed: Arc<Mutex<bool>>,
     //lock: RwLock<()>,
+}
+
+impl Clone for Index {
+    fn clone(&self) -> Self {
+        Self {
+            pathname: self.pathname.clone(),
+            index_entrys: Arc::clone(&self.index_entrys),
+            parents: Arc::clone(&self.parents),
+            keys: Arc::clone(&self.keys),
+            changed: Arc::clone(&self.changed),
+            //lock: RwLock::new(()),
+        }
+    }
 }
 
 impl Index {
     pub fn new(pathname: PathBuf) -> Self {
         Self {
             pathname,
-            index_entrys: BTreeMap::new(),
-            parents: BTreeMap::new(),
-            keys: BTreeSet::new(),
-            changed: false,
+            index_entrys: Arc::new(Mutex::new(BTreeMap::new())),
+            parents: Arc::new(Mutex::new(BTreeMap::new())),
+            keys: Arc::new(Mutex::new(BTreeSet::new())),
+            changed: Arc::new(Mutex::new(false)),
             //lock: RwLock::new(()),
         }
     }
     fn insert_key(&mut self, pathname: String) {
-        self.keys.insert(pathname);
+        self.keys.lock().unwrap().insert(pathname);
     }
     fn get_all_entrys(&self) -> BTreeMap<String, IndexEntry> {
-        self.index_entrys.clone()
+        
+        self.index_entrys.lock().unwrap().clone()
     }
     fn get_entry_by_name(&self, pathname: String) -> Option<IndexEntry> {
-        let e = self.index_entrys.get(&pathname);
+        let index_entrys_temp= self.index_entrys.lock().unwrap();
+        let e = index_entrys_temp.get(&pathname);
         match e {
             Some(e) => Some(e.clone()),
             None => None,
         }
     }
     fn get_all_parent(&self) -> BTreeMap<String, BTreeSet<String>> {
-        self.parents.clone()
+        self.parents.lock().unwrap().clone()
     }
     fn get_parent_by_name(&self, pathname: String) -> Option<BTreeSet<String>> {
-        let e = self.parents.get(&pathname);
+        let parents_temp = self.parents.lock().unwrap();
+        let e = parents_temp.get(&pathname);
         match e {
             Some(e) => Some(e.clone()),
             None => None,
         }
     }
     fn remove_parent_in_set(&mut self, parent_path: String, path_in_set: String) {
-        let mut set = self.parents.get_mut(&parent_path).unwrap();
+        let mut parents_temp = self.parents.lock().unwrap();
+        let mut set =parents_temp.get_mut(&parent_path).unwrap();
         set.remove(&path_in_set);
         if set.is_empty() {
-            self.parents.remove(&parent_path);
+            parents_temp.remove(&parent_path);
         }
     }
 
@@ -70,11 +87,14 @@ impl Index {
         let mut index_entry = IndexEntry::new(pathname.clone(), oid.to_string(), stat);
 
         self.remove_conflict(&index_entry);
+        let mut index_entrys_temp = self.index_entrys.lock().unwrap();
+        let mut keys_temp = self.keys.lock().unwrap();
+        let mut  changed_temp = self.changed.lock().unwrap();
 
-        self.index_entrys
+        index_entrys_temp
             .insert(pathname.to_str().unwrap().to_string(), index_entry);
-        self.keys.insert(pathname.to_str().unwrap().to_string());
-        self.changed = true;
+        keys_temp.insert(pathname.to_str().unwrap().to_string());
+        *changed_temp = true;
     }
 
     fn remove_conflict(&mut self, index_entry: &IndexEntry) {
@@ -106,18 +126,28 @@ impl Index {
         if entry.is_none() {
             return;
         }
-        self.keys.remove(&pathname);
-        self.index_entrys.remove(&pathname);
-
         // entry 本身要删除，所有的父目录下的set要删除entry
         for parent_dir in entry.clone().unwrap().parent_dir() {
             self.remove_parent_in_set(parent_dir.clone(), entry.clone().unwrap().path.clone());
         }
+        
+        let mut keys_temp = self.keys.lock().unwrap();
+        let mut index_entrys_temp = self.index_entrys.lock().unwrap();
+        
+        let entry = self.get_entry_by_name(pathname.clone());
+        if entry.is_none() {
+            return;
+        }
+        keys_temp.remove(&pathname);
+        index_entrys_temp.remove(&pathname);
+
+        
     }
 
     // pathnames:is a dir
     fn remove_children(&mut self, pathname: String) {
-        if !self.parents.contains_key(&pathname) {
+        //let  parents_temp = self.parents.lock().unwrap();
+        if !self.parents.lock().unwrap().contains_key(&pathname) {
             return;
         }
 
@@ -128,16 +158,24 @@ impl Index {
     }
 
     pub fn remove(&mut self, pathname: PathBuf) {
+       
         let pathname = pathname.to_str().unwrap().to_string();
         self.remove_entry(pathname.clone());
         self.remove_children(pathname.clone());
-        self.changed = true;
+        let  mut changed_temp = self.changed.lock().unwrap();
+        *changed_temp = true;
+    
     }
 
     pub fn write_updates(&mut self) {
        // let _guard = self.lock.write().unwrap();
-        let entries = self.index_entrys.clone();
+        //let entries = self.index_entrys.clone();
         //println!("entries: {:?}", entries);
+        let mut changed_temp = self.changed.lock().unwrap();
+        *changed_temp = false;
+        
+        
+        let index_entrys_temp = self.index_entrys.lock().unwrap();
         let mut content = vec![];
         let version: u32 = 2;
         // write header 4 bytes
@@ -145,9 +183,9 @@ impl Index {
         // write version 4 bytes
         content.extend_from_slice(&version.to_be_bytes());
         // write entry count 4 bytes
-        content.extend_from_slice(&(self.index_entrys.len() as u32).to_be_bytes());
+        content.extend_from_slice(&(index_entrys_temp.len() as u32).to_be_bytes());
         // write entrys
-        for (_, index_entry) in self.index_entrys.iter() {
+        for (_, index_entry) in index_entrys_temp.iter() {
             content.extend_from_slice(&index_entry.ctime.to_be_bytes());
             content.extend_from_slice(&index_entry.ctime_nsec.to_be_bytes());
             content.extend_from_slice(&index_entry.mtime.to_be_bytes());
@@ -178,7 +216,6 @@ impl Index {
         content.extend_from_slice(&sha1);
         // write to file
         std::fs::write(self.pathname.clone(), content).unwrap();
-        self.changed = false;
     }
 
     pub fn load_for_update(&mut self) -> BTreeMap<String, IndexEntry> {
@@ -347,29 +384,35 @@ impl Index {
             panic!("sha1 verify failed");
         }
         offset += 20;
-        self.index_entrys = index_entrys.clone();
-        self.parents = parents_map.clone();
-        self.keys = keys.clone();
+        let mut index_entrys_temp = self.index_entrys.lock().unwrap();
+        let mut parents_temp = self.parents.lock().unwrap();
+        let mut keys_temp = self.keys.lock().unwrap();
+        *index_entrys_temp = index_entrys.clone();
+        *parents_temp = parents_map.clone();
+        *keys_temp = keys.clone();
         index_entrys
     }
 
     pub fn tracked(&self, pathname: &PathBuf) -> bool {
-        if self.index_entrys.is_empty() {
+        if self.index_entrys.lock().unwrap().is_empty() {
             return false;
         }
-        if self.index_entrys.contains_key(pathname.to_str().unwrap()) {
+        if self.index_entrys.lock().unwrap().contains_key(pathname.to_str().unwrap()) {
             return true;
         }
         false
     }
 
-    pub fn index_entrys(&self) -> &BTreeMap<String, IndexEntry> {
-        &self.index_entrys
+    pub fn index_entrys(&self) -> BTreeMap<String, IndexEntry> {
+        let index_entrys_temp = self.index_entrys.lock().unwrap();
+        index_entrys_temp.clone()
     }
-    pub fn keys(&self) -> &BTreeSet<String> {
-        &self.keys
+    pub fn keys(&self) -> BTreeSet<String> {
+        let keys_temp = self.keys.lock().unwrap();
+        keys_temp.clone()
     }
-    pub fn parents(&self) -> &BTreeMap<String, BTreeSet<String>> {
-        &self.parents
+    pub fn parents(&self) -> BTreeMap<String, BTreeSet<String>> {
+        let parents_temp = self.parents.lock().unwrap();
+        parents_temp.clone()
     }
 }

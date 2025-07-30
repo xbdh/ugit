@@ -103,9 +103,9 @@ impl Command for CommitCommand {
 
 
     fn run(&mut self) -> Result<(), Box<dyn Error>> {
-        let mut repo = self.base.repo();
+        let mut index =self.base.index();
         //let refs = repo.refs();
-        repo.index.load_for_update();
+        index.load_for_update();
                 // let refs_empty = repo.refs().refs_heads_is_empty();
                 // let mut commit_hash="".to_string();
                 // let parent_id = repo.refs().read_HEAD();
@@ -115,7 +115,7 @@ impl Command for CommitCommand {
                 // } else {
                 //     commit_hash = write_commit(repo, None,self.commit_message().clone());
                 // }
-        let commit_hash = write_commit(repo, None,self.commit_message().clone());
+        let commit_hash = write_commit(index, None,self.commit_message().clone());
 
                 // let commit = GCommit::new(parent_id.clone(), tree_hash.to_string(), author, message.as_str());
     println!("{commit_hash: } {:?}", commit_hash);

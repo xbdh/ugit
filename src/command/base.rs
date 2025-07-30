@@ -1,7 +1,13 @@
 use std::env;
 use std::io::{stderr, stdin, stdout, Stderr, Stdin, Stdout};
 use std::path::PathBuf;
+use chrono::DateTime;
+use crate::database::Database;
+use crate::index;
+use crate::index::Index;
+use crate::refs::Refs;
 use crate::repository::Repository;
+use crate::workspace::Workspace;
 
 // 共享的基础数据和功能
 pub struct CommandBase {
@@ -13,6 +19,10 @@ pub struct CommandBase {
     status: i32,
     isatty: bool,
     verbose: bool,
+    index: Index,
+    refs : Refs,
+    workspace: Workspace,
+    database: Database,
 }
 
 impl CommandBase {
@@ -20,7 +30,7 @@ impl CommandBase {
         let isatty = atty::is(atty::Stream::Stdout);
 
         CommandBase {
-            dir,
+            dir: dir.clone(),
             env: env::vars().collect(),
             stdin: stdin(),
             stdout: stdout(),
@@ -28,11 +38,21 @@ impl CommandBase {
             status: 0,
             isatty,
             verbose,
+            index: Index::new(dir.clone().join(".git/index")),
+            refs: Refs::new(dir.clone().join(".git/refs")),
         }
     }
 
-    pub(crate) fn repo(&self) -> Repository {
-        Repository::new(self.dir.join(".git"))
+    // pub(crate) fn repo(&self) -> Repository {
+    //     Repository::new(self.dir.join(".git"))
+    // }
+
+    pub fn index(&self) ->index::Index {
+        self.index.clone()
+    }
+
+    pub fn refs(&self) ->Refs {
+        self.refs.clone()
     }
 
     pub(crate) fn expanded_pathname(&self, path: &PathBuf) -> PathBuf {

@@ -91,7 +91,7 @@ impl AddCommand {
             self.args.paths.iter()
                 .flat_map(|path| {
                     let expanded = self.base.expanded_pathname(path);
-                    self.base.repo().workspace.list_files(expanded)
+                    self.base.workspace.list_files(expanded)
                 })
                 .collect()
         }

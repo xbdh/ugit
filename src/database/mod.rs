@@ -12,123 +12,120 @@ use flate2::write::ZlibEncoder;
 use flate2::Compression;
 use indexmap::IndexMap;
 use sha1::Digest;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs::OpenOptions;
 use std::io::{BufRead, Read, Write};
 use std::path::PathBuf;
 use std::{fs, io};
+use std::sync::{Arc, Mutex};
+use std::thread::sleep;
 use tracing::info;
 use tracing_subscriber::fmt::format;
 
 use crate::entry::Entry;
 
-// pub fn blob_from(data: &str) -> Blob {
-//     Blob::from(data)
+// pub fn store( object: &mut impl  GitObject)  {
+//     let mut content = vec![];
+//     content.extend_from_slice(object.object_type().as_bytes());
+//     content.push(b' ');
+//     content.extend_from_slice(object.to_string().len().to_string().as_bytes());
+//     content.push(b'\0');
+//     content.extend_from_slice(&object.to_string());
+//
+//     let mut hasher = sha1::Sha1::new();
+//     hasher.update(content.clone());
+//     let hash = hasher.finalize();
+//     let hash = format!("{:x}", hash);
+//
+//     object.set_object_id(hash.as_str());
+//     write_object(&hash, &content);
+//     //hash
+//
 // }
+//
+// pub fn write_object( hash: &str, content: &Vec<u8>) {
+//     info!("write object with hash: {}  {:?}", hash,content);
+//     let object_path = self
+//         .path_name
+//         .join(hash[0..2].to_string())
+//         .join(hash[2..].to_string());
+//     //let dirname = object_path.parent().unwrap();
+//     if object_path.exists() {
+//         return;
+//     }
+//     let blob_path = self.path_name.join(hash[0..2].to_string());
+//     fs::create_dir_all(&blob_path).unwrap();
+//     let blob_name = blob_path.join(&hash[2..]);
+//     let file = OpenOptions::new()
+//         .write(true)
+//         .create(true)
+//         .read(true)
+//         .open(blob_name)
+//         .unwrap();
+//     let compressed = compress(content).unwrap();
+//     let mut file = std::io::BufWriter::new(file);
+//     file.write_all(&compressed).unwrap();
+// }
+// //
+// // // pub fn blob_from(data: &str) -> Blob {
+// // //     Blob::from(data)
+// // // }
 
 
 
 
-#[derive(Debug, Clone)]
-pub struct Database {
+#[derive(Debug)]
+pub struct Database<T :  GitObject> {
     pub path_name: PathBuf,
+    pub objects: Arc<Mutex<BTreeMap<String, T>>>,
+}
+// 手动实现 Clone
+impl<T: GitObject +Clone> Clone for Database<T> {
+    fn clone(&self) -> Self {
+        Database{
+            path_name: self.path_name.clone(),
+            objects: Arc::clone(&self.objects),
+        }
+    }
 }
 
-impl Database {
+impl<T :GitObject>  Database<T>
+where
+    T: From<Tree> + From<Blob> + From<Commit>,
+{
     pub fn new(path_name: PathBuf) -> Self {
-        Self { path_name }
-    }
-
-    pub fn hash_object(&self, data: &str, type_: &str) -> String{
-        let mut content = vec![];
-        content.extend_from_slice(type_.as_bytes());
-        content.push(b' ');
-        content.extend_from_slice(data.len().to_string().as_bytes());
-        content.push(b'\0');
-        content.extend_from_slice(data.as_bytes());
-
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(content.clone());
-        let hash = hasher.finalize();
-        let hash = format!("{:x}", hash);
-        self.write_object(&hash, &content);
-        hash
+        Self{
+            path_name,
+            objects: Arc::new(Mutex::new(BTreeMap::new())),
+        }
     }
 
     pub fn store(&self, object: &mut impl  GitObject)  {
+        Self::serialize_object(object);
+
+        let mut serialize_content = Self::serialize_object(object);
+        let hex_hash = Self::hash_content(&serialize_content);
+
+        object.set_object_id(&hex_hash);
+        self.write_object(&hex_hash, &serialize_content);
+        //hash
+
+    }
+    fn serialize_object(object: &impl GitObject) -> Vec<u8> {
         let mut content = vec![];
         content.extend_from_slice(object.object_type().as_bytes());
         content.push(b' ');
         content.extend_from_slice(object.to_string().len().to_string().as_bytes());
         content.push(b'\0');
         content.extend_from_slice(&object.to_string());
-
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(content.clone());
-        let hash = hasher.finalize();
-        let hash = format!("{:x}", hash);
-
-        object.set_object_id(hash.as_str());
-        self.write_object(&hash, &content);
-        //hash
-
+        content
     }
-
-    pub fn store_blob(&self, blob: &mut Blob) -> String {
-        //let content = format!("{} {}\0{}", blob.type_(), blob.data.len(), blob.data);
-        //println!("blob content: {}", content);
-        let mut content = vec![];
-        content.extend_from_slice(blob.object_type().as_bytes());
-        content.push(b' ');
-        content.extend_from_slice(blob.data.len().to_string().as_bytes());
-        content.push(b'\0');
-        content.extend_from_slice(&blob.data);
-
+    fn hash_content(content: &[u8]) -> String {
         let mut hasher = sha1::Sha1::new();
-        hasher.update(content.clone());
+        hasher.update(content);
         let hash = hasher.finalize();
-        let hash = format!("{:x}", hash);
-        blob.set_object_id(hash.as_str());
-
-        self.write_object(&hash, &content);
-        hash
-    }
-
-    pub fn store_tree(&self, tree: &mut Tree) ->String {
-        //let content = format!("{} {}\0{}", tree.type_(), tree.len(), tree.to_string());
-        let mut content = vec![];
-        content.extend_from_slice(tree.object_type().as_bytes());
-        content.push(b' ');
-        content.extend_from_slice(tree.len().to_string().as_bytes());
-
-        content.push(b'\0');
-        content.extend_from_slice(&tree.to_string());
-
-        //println!("tree content: {}", vv);
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(content.clone());
-        let hash = hasher.finalize();
-        let hash = format!("{:x}", hash);
-
-        tree.set_object_id(hash.as_str());
-        self.write_object(&hash, &content);
-        hash
-    }
-
-    pub fn store_commit(&self, commit: Commit) -> String {
-        let mut content = vec![];
-        content.extend_from_slice(commit.object_type().as_bytes());
-        content.push(b' ');
-        content.extend_from_slice(commit.len().to_string().as_bytes());
-        content.push(b'\0');
-        content.extend_from_slice(commit.to_string().as_slice());
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(content.clone());
-        let hash = hasher.finalize();
-        let hash = format!("{:x}", hash);
-
-        self.write_object(&hash, &content);
-        hash
+        let hex_hash=hex::encode(hash);
+        hex_hash
     }
 
     pub fn write_object(&self, hash: &str, content: &Vec<u8>) {
@@ -154,6 +151,49 @@ impl Database {
         let mut file = std::io::BufWriter::new(file);
         file.write_all(&compressed).unwrap();
     }
+
+
+
+    // pub fn load(&self, hash: &str) -> T {
+    //    // if  let Ok(objects) = self.objects.lock() {
+    //    //      if let Some(object) = objects.get(hash) {
+    //    //          return object.clone();
+    //    //      }
+    //    //  }
+    //     // 如果没有找到，则从文件系统中读取
+    //     let object = self.read_object(hash);
+    //     object
+    // }
+
+    fn read_object(&self,hash: &str) ->  Vec<u8>{
+        let object_path = self
+                .path_name
+                .join(hash[0..2].to_string())
+                .join(hash[2..].to_string());
+            //info!("read object with path: {:?}", object_path);
+            let mut file = OpenOptions::new().read(true).open(object_path).unwrap();
+            let mut content = vec![];
+            file.read_to_end(&mut content).unwrap();
+            let decompressed = decompress(&content).unwrap();
+            // check first one byte
+            if decompressed.is_empty() {
+                panic!("object {} is empty", hash);
+            }
+            decompressed
+
+    }
+
+    // fn load_raw(&self, hash: &str) -> Vec<u8> {
+    //     let object_path = self
+    //         .path_name
+    //         .join(hash[0..2].to_string())
+    //         .join(hash[2..].to_string());
+    //     //info!("read object with path: {:?}", object_path);
+    //     let mut file = OpenOptions::new().read(true).open(object_path).unwrap();
+    //     let mut content = vec![];
+    //     file.read_to_end(&mut content).unwrap();
+    //     content
+    // }
 }
 
 pub fn compress(data: &[u8]) -> io::Result<Vec<u8>> {
@@ -170,40 +210,13 @@ pub fn decompress(data: &[u8]) -> io::Result<Vec<u8>> {
     Ok(decompressed)
 }
 
-// impl Database {
-//     pub fn new_blob(data: Vec<u8>) -> Blob {
-//         Blob::new(data)
-//     }
-//     pub fn new_tree(entrys: Vec<Entry>) -> Tree {
-//         Tree::new(entrys)
-//     }
-//     pub fn new_author(name: &str, email: &str) -> author::Author {
-//         Author::new(name, email)
-//     }
-//
-//     pub fn new_commit(
-//         parent_id: Option<Vec<String>>,
-//         tree_id: String,
-//         author: Author,
-//         message: &str,
-//     ) -> Commit {
-//         Commit::new(parent_id, tree_id.as_str(), author, message)
-//     }
-// }
 
-impl Database {
-    pub fn read_object(&self, hash: &str) -> Vec<u8> {
-        let object_path = self
-            .path_name
-            .join(hash[0..2].to_string())
-            .join(hash[2..].to_string());
-        //info!("read object with path: {:?}", object_path);
-        let mut file = OpenOptions::new().read(true).open(object_path).unwrap();
-        let mut content = vec![];
-        file.read_to_end(&mut content).unwrap();
-        let decompressed = decompress(&content).unwrap();
-        decompressed
-    }
+
+impl<T :GitObject>  Database<T>
+where
+    T: From<Tree> + From<Blob> + From<Commit>,
+{
+ 
     pub fn load_blob(&self, hash: &str) -> Blob {
         let content = self.read_object(hash);
         let content = String::from_utf8(content).unwrap();
@@ -383,12 +396,12 @@ impl Database {
         changes
     }
 }
-   
-// eg
-//Tree { entries: {"a": SubTree(Tree { entries: {"b": SubTree(Tree { entries: {"c.txt": Entry(Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" })},
-// object_id: "cf67e9ef3a0fc6d858423fc177f2fbbe985a6f17", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} })},
-// object_id: "624db7b0ba3f4677714c28ff3351a0a6f63306ef", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} })},
-// object_id: "ded3b76a89198e962945b0dca402a64420bceabf", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} }
+//
+// // eg
+// //Tree { entries: {"a": SubTree(Tree { entries: {"b": SubTree(Tree { entries: {"c.txt": Entry(Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" })},
+// // object_id: "cf67e9ef3a0fc6d858423fc177f2fbbe985a6f17", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} })},
+// // object_id: "624db7b0ba3f4677714c28ff3351a0a6f63306ef", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} })},
+// // object_id: "ded3b76a89198e962945b0dca402a64420bceabf", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} }
 fn compare_head_target(
     head_tree: IndexMap<PathBuf, Entry>,
     target_tree: IndexMap<PathBuf, Entry>,
