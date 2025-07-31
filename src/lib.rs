@@ -11,7 +11,7 @@
 pub mod cli;
 pub mod command;
 pub mod database;
-pub mod entry;
+pub mod tree_entry;
 pub mod index;
 pub mod refs;
 

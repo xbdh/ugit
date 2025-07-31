@@ -9,7 +9,7 @@ pub struct Author {
     date: DateTime<Local>,
 }
 impl Author {
-    pub fn new(name: &str, email: &str) -> Self {
+    pub fn new(name: &str, email: &str,date_time: DateTime<Local>) -> Self {
         Self {
             name: name.to_string(),
             email: email.to_string(),

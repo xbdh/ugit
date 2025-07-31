@@ -2,6 +2,7 @@ pub mod author;
 pub mod blob;
 pub mod commit;
 pub mod tree;
+pub mod parse;
 
 use crate::database::author::Author;
 pub(crate) use crate::database::blob::Blob;
@@ -21,57 +22,9 @@ use std::sync::{Arc, Mutex};
 use std::thread::sleep;
 use tracing::info;
 use tracing_subscriber::fmt::format;
-
-use crate::entry::Entry;
-
-// pub fn store( object: &mut impl  GitObject)  {
-//     let mut content = vec![];
-//     content.extend_from_slice(object.object_type().as_bytes());
-//     content.push(b' ');
-//     content.extend_from_slice(object.to_string().len().to_string().as_bytes());
-//     content.push(b'\0');
-//     content.extend_from_slice(&object.to_string());
-//
-//     let mut hasher = sha1::Sha1::new();
-//     hasher.update(content.clone());
-//     let hash = hasher.finalize();
-//     let hash = format!("{:x}", hash);
-//
-//     object.set_object_id(hash.as_str());
-//     write_object(&hash, &content);
-//     //hash
-//
-// }
-//
-// pub fn write_object( hash: &str, content: &Vec<u8>) {
-//     info!("write object with hash: {}  {:?}", hash,content);
-//     let object_path = self
-//         .path_name
-//         .join(hash[0..2].to_string())
-//         .join(hash[2..].to_string());
-//     //let dirname = object_path.parent().unwrap();
-//     if object_path.exists() {
-//         return;
-//     }
-//     let blob_path = self.path_name.join(hash[0..2].to_string());
-//     fs::create_dir_all(&blob_path).unwrap();
-//     let blob_name = blob_path.join(&hash[2..]);
-//     let file = OpenOptions::new()
-//         .write(true)
-//         .create(true)
-//         .read(true)
-//         .open(blob_name)
-//         .unwrap();
-//     let compressed = compress(content).unwrap();
-//     let mut file = std::io::BufWriter::new(file);
-//     file.write_all(&compressed).unwrap();
-// }
-// //
-// // // pub fn blob_from(data: &str) -> Blob {
-// // //     Blob::from(data)
-// // // }
-
-
+use winnow::Parser;
+use crate::database::parse::{parse_blob_content, parse_commit_content, parse_header, parse_tree_entry_typed};
+use crate::tree_entry::{TreeEntryLine, TreeEntryMode};
 
 
 #[derive(Debug)]
@@ -216,7 +169,86 @@ impl<T :GitObject>  Database<T>
 where
     T: From<Tree> + From<Blob> + From<Commit>,
 {
- 
+
+    pub fn load(&self, hash: &str,path_init:PathBuf) -> T {
+        // check if the object is in the cache
+        let decompressed_object = self.read_object(hash);
+        let mut input = decompressed_object.as_slice();
+        let (object_type, size) = parse_header(&mut input).unwrap();
+
+
+        // if not found in cache, read from file system
+        match object_type.as_str() {
+            "blob" => {
+                let blob_data = parse_blob_content(&mut input).unwrap();
+                let mut blob = Blob::new(blob_data.into_bytes());
+                blob.set_object_id(hash);
+                T::from(blob)
+            }
+
+
+
+            "commit" => {
+                let (tree_id, parents, author, committer, message) = parse_commit_content(&mut input).unwrap();
+                let mut commit = Commit::new(&tree_id, parents, author, committer, &message);
+                commit.set_object_id(hash);
+                T::from(commit)
+            }
+
+            "tree" => {
+
+                let mut entry_tree_map = IndexMap::new();
+                let mut entry_line_map = IndexMap::new();
+                let start_len = input.len();
+
+                while start_len - input.len() < size {
+                    match parse_tree_entry_typed.parse_next(&mut input) {
+                        Ok(typed_entry) => {
+                            let relative_path = typed_entry.entry_name().clone();
+                            //let full_path = self.path_name.join(&relative_path);
+
+                            match typed_entry.mode() {
+                                TreeEntryMode::Tree => {
+                                    let tree_id = typed_entry.object_id().clone();
+                                    let subtree = self.load(&typed_entry.object_id(),path_init.join(relative_path.clone()));
+
+                                    //let tree_entry = TreeEntry::SubTree(subtree);
+
+                                    entry_tree_map.insert(relative_path,tree_entry);
+                                    // 合并子树的 entries_list
+                                    for (sub_path, sub_entry) in &subtree.entries_list {
+                                        entry_line_map.insert(sub_path.clone(), sub_entry.clone());
+                                    }
+
+                                    //tree_entries.insert(relative_path, TreeEntry::SubTree(subtree));
+                                }
+                                _ => {
+                                    let mode = typed_entry.mode().clone();
+
+                                    let entry = Entry::new(
+                                        relative_path.clone(),
+                                        &typed_entry.object_id(),
+                                        mode,
+                                    );
+                                    entry_tree_map.insert(relative_path.clone(), TreeEntry::Entry(entry.clone()));
+                                    entry_line_map.insert(path_init.join(relative_path), entry);
+                                }
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+                GitObject::Tree(
+                    Tree {
+                        entries: entry_tree_map,
+                        entries_list: entry_line_map,
+                        object_id: hash.to_string(),
+                    }
+                )
+            }
+            _ => panic!("Unknown object type: {}", object_type),
+        }
+    }
     pub fn load_blob(&self, hash: &str) -> Blob {
         let content = self.read_object(hash);
         let content = String::from_utf8(content).unwrap();
@@ -301,7 +333,7 @@ where
         let content = self.read_object(hash);
         // convert to str
         let mut entries_map = IndexMap::new();
-        let mut entries_list_map: IndexMap<PathBuf, Entry> = IndexMap::new();
+        let mut entries_list_map: IndexMap<PathBuf, TreeEntryLine> = IndexMap::new();
         //tree with hash:fe002358f136fdcc8fbfd7a8cdc687fee7ee6429
         // data is : "100644 abc\0�⛲��CK�)�wZ���S�100644 abcdefg\0�⛲��CK�)�wZ���S�"
         // 如何解析这个字符串100644 abc\0�⛲��CK�)�wZ���S� 为一组？
@@ -346,9 +378,9 @@ where
                 i += 20;
                 let tree_oid = hex::encode(hash.clone());
                 let subtree = self.load_tree(tree_oid.as_str(), path_init.join(path.clone()));
-                let tree_entry = TreeEntry::SubTree(subtree.clone());
+                let tree_entry = TreeEntryLine::SubTree(subtree.clone());
                 entries_map.insert(path.clone(), tree_entry);
-                let elist = subtree.entries_list.clone();
+                let elist = subtree.entry_lines_map.clone();
                 for (k, v) in elist.iter() {
                     entries_list_map.insert(k.clone(), v.clone());
                 }
@@ -368,16 +400,16 @@ where
 
                 i += 20;
                 let object_id = hex::encode(hash.clone());
-                let entry = Entry::new(path_init.join(path.clone()), &object_id, mode);
-                let tree_entry = TreeEntry::Entry(entry.clone());
+                let entry = TreeEntryLine::new(path_init.join(path.clone()), &object_id, mode);
+                let tree_entry = TreeEntryLine::Entry(entry.clone());
                 entries_map.insert(path.clone(), tree_entry.clone());
 
                 entries_list_map.insert(path_init.join(path.clone()), entry.clone());
             }
         }
 
-        tree.entries = entries_map;
-        tree.entries_list = entries_list_map;
+        tree.entry_tree_map = entries_map;
+        tree.entry_lines_map = entries_list_map;
         tree.object_id = hash.to_string();
         tree
     }
@@ -390,7 +422,7 @@ where
         let n_tree_oid = &new_commit.tree_id;
         let old_tree = self.load_tree(o_tree_oid, PathBuf::new());
         let new_tree = self.load_tree(n_tree_oid, PathBuf::new());
-        let changes = compare_head_target(old_tree.entries_list, new_tree.entries_list);
+        let changes = compare_head_target(old_tree.entry_lines_map, new_tree.entry_lines_map);
 
 
         changes
@@ -403,8 +435,8 @@ where
 // // object_id: "624db7b0ba3f4677714c28ff3351a0a6f63306ef", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} })},
 // // object_id: "ded3b76a89198e962945b0dca402a64420bceabf", entries_list: {"a/b/c.txt": Entry { filename: "a/b/c.txt", object_id: "f2ad6c76f0115a6ba5b00456a849810e7ec0af20" }} }
 fn compare_head_target(
-    head_tree: IndexMap<PathBuf, Entry>,
-    target_tree: IndexMap<PathBuf, Entry>,
+    head_tree: IndexMap<PathBuf, TreeEntryLine>,
+    target_tree: IndexMap<PathBuf, TreeEntryLine>,
 ) -> IndexMap<PathBuf, (String, String)> {
     let mut changes: IndexMap<PathBuf, (String,String)> = IndexMap::new();
 

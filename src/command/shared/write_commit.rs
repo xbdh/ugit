@@ -4,7 +4,7 @@ use crate::database::author::Author;
 use crate::database::commit::Commit;
 use crate::database::GitObject;
 use crate::database::tree::Tree;
-use crate::entry::Entry;
+use crate::tree_entry::TreeEntryLine;
 use crate::index::Index;
 use crate::repository::Repository;
 
@@ -27,7 +27,7 @@ pub fn write_commit(mut index:Index, parents:Option<Vec<String>>, message: Strin
             mode = "100644"
         }
 
-        let entry = Entry::new(file_path, &bhash, mode);
+        let entry = TreeEntryLine::new(file_path, &bhash, mode);
         entrys.push(entry);
     }
 

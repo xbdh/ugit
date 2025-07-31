@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use crate::database::author::Author;
 use crate::database::commit::Commit;
 use crate::database::tree::Tree;
-use crate::entry::Entry;
+use crate::tree_entry::TreeEntryLine;
 // use crate::repository::status::Status;
 
 // abc/.git  stand for anythings in .git
