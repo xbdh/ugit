@@ -28,8 +28,8 @@ impl AddCommand {
         } else {
             self.args.paths.iter()
                 .flat_map(|path| {
-                    let expanded = self.base.expanded_pathname(path);
-                    self.base.workspace().list_files(expanded)
+                    //let expanded = self.base.expanded_pathname(path);
+                    self.base.workspace().list_files(path.clone())
                 })
                 .collect()
         }
@@ -45,6 +45,7 @@ impl AddCommand {
     }
 
     fn add_to_index(&mut self, path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+        info!("Adding full  file: {}", path.display());
         if self.args.verbose {
             println!("add '{}'", path.display());
         }
@@ -53,7 +54,13 @@ impl AddCommand {
         let stat = self.base.workspace().stat_file(path.clone());
 
         let mut blob = Blob::new(data);
+        info!("adding '{:?}'", blob.object_id());
         self.base.database().store_blob(&mut blob);
+        info!("adding '{:?}'", blob.object_id());
+        // let relative_path = path.strip_prefix(&self.base.dir())
+        //     .map_err(|_| "Failed to strip prefix")?
+        //     .to_path_buf();
+        println!("adding rel'{}'", path.clone().display());
         self.base.index().add(path.clone(), &blob.object_id(), stat);
 
         Ok(())
@@ -85,9 +92,9 @@ impl Command for AddCommand {
 
         self.base.index().load_for_update();
 
-        let _   = self.expanded_paths();
-        let relative_paths = self.relative_paths();
-        relative_paths.iter().for_each(|path| {
+        let paths = self.expanded_paths();
+        //let relative_paths = self.relative_paths();
+        paths.iter().for_each(|path| {
             self.add_to_index(path).unwrap()
         });
 
