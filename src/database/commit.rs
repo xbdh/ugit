@@ -1,15 +1,14 @@
 use crate::database::author::Author;
-use crate::database::GitObject;
 
 #[derive(Debug, Clone, Default)]
 pub struct Commit {
-    oject_id: String,
+    object_id: String,
     
     parents_id: Vec<String>,// 0,1.2
-    pub tree_id: String,
-    pub author: Author,
-    pub committer: Author, // committer is same as author
-    pub message: String,
+    tree_id: String,
+    author: Author,
+    committer: Author, // committer is same as author
+    message: String,
 }
 
 impl Commit {
@@ -17,7 +16,7 @@ impl Commit {
         Self {
             tree_id: tree_id.to_string(),
             parents_id,
-            oject_id: "".to_string(),
+            object_id: "".to_string(),
             author,
             committer,
             message: message.to_string(),
@@ -27,7 +26,7 @@ impl Commit {
     
 
     pub fn len(&self) -> usize {
-        self.to_string().len()
+        self.to_s().len()
     }
     
     pub fn parents_id(&self) -> Vec<String> {
@@ -40,22 +39,29 @@ impl Commit {
     pub fn author(&self) -> Author {
         self.author.clone()
     }
+    pub fn committer(&self) -> Author {
+        self.committer.clone()
+    }
+    pub fn tree_id(&self) -> String {
+        self.tree_id.clone()
+    }
+    
 }
 
-impl GitObject for Commit {
-    fn object_id(&self) -> String {
-        self.oject_id.clone()
+impl  Commit {
+    pub fn object_id(&self) -> String {
+        self.object_id.clone()
     }
 
-    fn set_object_id(&mut self, oid: &str) {
-        self.oject_id = oid.to_string();
+    pub fn set_object_id(&mut self, oid: &str) {
+        self.object_id = oid.to_string();
     }
 
-    fn object_type(&self) -> String {
+    pub fn object_type(&self) -> String {
         "commit".to_string()
     }
 
-     fn to_string(&self) -> Vec<u8> {
+    pub fn to_s(&self) -> Vec<u8> {
         let mut content = vec![];
         content.extend_from_slice("tree ".as_bytes());
         // content.push(b' ');

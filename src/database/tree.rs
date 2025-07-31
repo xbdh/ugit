@@ -6,7 +6,6 @@ use std::io::{BufRead, Read};
 use std::path::PathBuf;
 
 use indexmap::IndexMap;
-use crate::database::GitObject;
 use crate::tree_entry::TreeEntryLine;
 
 #[derive(Debug, Clone, Default)]
@@ -52,7 +51,7 @@ impl Tree {
 
    
     pub fn len(&self) -> usize {
-        self.to_string().len()
+        self.to_s().len()
     }
 
     fn mode(&self) -> &str {
@@ -161,19 +160,19 @@ fn add_entry(entriesmp: &mut IndexMap<PathBuf, TreeEntry>, parent: Vec<PathBuf>,
     }
 }
 
-impl GitObject for Tree {
-    fn object_id(&self) -> String {
+impl  Tree {
+    pub fn object_id(&self) -> String {
         self.object_id.clone()
     }
 
-    fn set_object_id(&mut self, object_id: &str) {
+    pub  fn set_object_id(&mut self, object_id: &str) {
         self.object_id = object_id.to_string();
     }
-    fn object_type(&self) -> String {
+    pub fn object_type(&self) -> String {
         "tree".to_string()
     }
 
-    fn to_string(&self) -> Vec<u8> {
+    pub fn to_s(&self) -> Vec<u8> {
         let mut content = vec![];
 
         for (path, entry) in self.entry_tree_map.iter() {

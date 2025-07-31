@@ -3,7 +3,7 @@ pub mod migration;
 pub mod log_list;
 mod status;
 
-use crate::database::{Database, GitObject};
+use crate::database::{Database};
 use crate::index::Index;
 use crate::refs::Refs;
 use crate::workspace::Workspace;

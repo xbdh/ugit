@@ -28,56 +28,78 @@ use crate::tree_entry::{TreeEntryLine, TreeEntryMode};
 
 
 #[derive(Debug)]
-pub struct Database<T :  GitObject> {
+pub struct Database {
     pub path_name: PathBuf,
-    pub objects: Arc<Mutex<BTreeMap<String, T>>>,
+    pub blob_objects: Arc<Mutex<BTreeMap<String, Blob>>>, // 存储 Blob 对象的 BTreeMap
+    pub tree_objects: Arc<Mutex<BTreeMap<String, Tree>>>,
+    pub commit_objects: Arc<Mutex<BTreeMap<String, Commit>>>, // 存储 Commit 对象的 BTreeMap
 }
 // 手动实现 Clone
-impl<T: GitObject +Clone> Clone for Database<T> {
+impl Clone for Database {
     fn clone(&self) -> Self {
         Database{
             path_name: self.path_name.clone(),
-            objects: Arc::clone(&self.objects),
+            blob_objects: Arc::clone(&self.blob_objects),
+            tree_objects: Arc::clone(&self.tree_objects),
+            commit_objects: Arc::clone(&self.commit_objects),
         }
     }
 }
 
-impl<T :GitObject>  Database<T>
-where
-    T: From<Tree> + From<Blob> + From<Commit>,
-{
+impl Database {
     pub fn new(path_name: PathBuf) -> Self {
-        Self{
+        Self {
             path_name,
-            objects: Arc::new(Mutex::new(BTreeMap::new())),
+            blob_objects: Arc::new(Mutex::new(BTreeMap::new())),
+            tree_objects: Arc::new(Mutex::new(BTreeMap::new())),
+            commit_objects: Arc::new(Mutex::new(BTreeMap::new())),
         }
     }
 
-    pub fn store(&self, object: &mut impl  GitObject)  {
-        Self::serialize_object(object);
-
-        let mut serialize_content = Self::serialize_object(object);
-        let hex_hash = Self::hash_content(&serialize_content);
-
-        object.set_object_id(&hex_hash);
-        self.write_object(&hex_hash, &serialize_content);
-        //hash
-
-    }
-    fn serialize_object(object: &impl GitObject) -> Vec<u8> {
+    pub fn store_blob(&self, object: &mut Blob) {
         let mut content = vec![];
         content.extend_from_slice(object.object_type().as_bytes());
         content.push(b' ');
-        content.extend_from_slice(object.to_string().len().to_string().as_bytes());
+        content.extend_from_slice(object.to_s().len().to_string().as_bytes());
         content.push(b'\0');
-        content.extend_from_slice(&object.to_string());
-        content
+        content.extend_from_slice(&object.to_s());
+
+        let hex_hash = Self::hash_content(&content);
+
+        object.set_object_id(&hex_hash);
+        self.write_object(&hex_hash, &content);
+        //hash
     }
+    pub fn store_commit(&self, object: &mut Commit) {
+        let mut content = vec![];
+        content.extend_from_slice(object.object_type().as_bytes());
+        content.push(b' ');
+        content.extend_from_slice(object.len().to_string().as_bytes());
+        content.push(b'\0');
+        content.extend_from_slice(&object.to_s());
+
+        let hex_hash = Self::hash_content(&content);
+        object.set_object_id(&hex_hash);
+        self.write_object(&hex_hash, &content);
+    }
+    pub fn store_tree(&self, object: &mut Tree) {
+        let mut content = vec![];
+        content.extend_from_slice(object.object_type().as_bytes());
+        content.push(b' ');
+        content.extend_from_slice(object.len().to_string().as_bytes());
+        content.push(b'\0');
+        content.extend_from_slice(&object.to_s());
+
+        let hex_hash = Self::hash_content(&content);
+        object.set_object_id(&hex_hash);
+        self.write_object(&hex_hash, &content);
+    }
+
     fn hash_content(content: &[u8]) -> String {
         let mut hasher = sha1::Sha1::new();
         hasher.update(content);
         let hash = hasher.finalize();
-        let hex_hash=hex::encode(hash);
+        let hex_hash = hex::encode(hash);
         hex_hash
     }
 
@@ -105,48 +127,22 @@ where
         file.write_all(&compressed).unwrap();
     }
 
-
-
-    // pub fn load(&self, hash: &str) -> T {
-    //    // if  let Ok(objects) = self.objects.lock() {
-    //    //      if let Some(object) = objects.get(hash) {
-    //    //          return object.clone();
-    //    //      }
-    //    //  }
-    //     // 如果没有找到，则从文件系统中读取
-    //     let object = self.read_object(hash);
-    //     object
-    // }
-
-    fn read_object(&self,hash: &str) ->  Vec<u8>{
+    fn read_object(&self, hash: &str) -> Vec<u8> {
         let object_path = self
-                .path_name
-                .join(hash[0..2].to_string())
-                .join(hash[2..].to_string());
-            //info!("read object with path: {:?}", object_path);
-            let mut file = OpenOptions::new().read(true).open(object_path).unwrap();
-            let mut content = vec![];
-            file.read_to_end(&mut content).unwrap();
-            let decompressed = decompress(&content).unwrap();
-            // check first one byte
-            if decompressed.is_empty() {
-                panic!("object {} is empty", hash);
-            }
-            decompressed
-
+            .path_name
+            .join(hash[0..2].to_string())
+            .join(hash[2..].to_string());
+        //info!("read object with path: {:?}", object_path);
+        let mut file = OpenOptions::new().read(true).open(object_path).unwrap();
+        let mut content = vec![];
+        file.read_to_end(&mut content).unwrap();
+        let decompressed = decompress(&content).unwrap();
+        // check first one byte
+        if decompressed.is_empty() {
+            panic!("object {} is empty", hash);
+        }
+        decompressed
     }
-
-    // fn load_raw(&self, hash: &str) -> Vec<u8> {
-    //     let object_path = self
-    //         .path_name
-    //         .join(hash[0..2].to_string())
-    //         .join(hash[2..].to_string());
-    //     //info!("read object with path: {:?}", object_path);
-    //     let mut file = OpenOptions::new().read(true).open(object_path).unwrap();
-    //     let mut content = vec![];
-    //     file.read_to_end(&mut content).unwrap();
-    //     content
-    // }
 }
 
 pub fn compress(data: &[u8]) -> io::Result<Vec<u8>> {
@@ -165,17 +161,13 @@ pub fn decompress(data: &[u8]) -> io::Result<Vec<u8>> {
 
 
 
-impl<T :GitObject>  Database<T>
-where
-    T: From<Tree> + From<Blob> + From<Commit>,
-{
+impl Database {
 
-    pub fn load(&self, hash: &str,path_init:PathBuf) -> T {
+    pub fn load_blob(&self, hash: &str) -> Blob {
         // check if the object is in the cache
         let decompressed_object = self.read_object(hash);
         let mut input = decompressed_object.as_slice();
         let (object_type, size) = parse_header(&mut input).unwrap();
-
 
         // if not found in cache, read from file system
         match object_type.as_str() {
@@ -183,20 +175,39 @@ where
                 let blob_data = parse_blob_content(&mut input).unwrap();
                 let mut blob = Blob::new(blob_data.into_bytes());
                 blob.set_object_id(hash);
-                T::from(blob)
+                blob
             }
+            _ => panic!("Unknown object type: {}", object_type),
+        }
+    }
 
+    pub fn load_commit(&self, hash: &str) -> Commit {
+        // check if the object is in the cache
+        let decompressed_object = self.read_object(hash);
+        let mut input = decompressed_object.as_slice();
+        let (object_type, size) = parse_header(&mut input).unwrap();
 
-
+        // if not found in cache, read from file system
+        match object_type.as_str() {
             "commit" => {
                 let (tree_id, parents, author, committer, message) = parse_commit_content(&mut input).unwrap();
                 let mut commit = Commit::new(&tree_id, parents, author, committer, &message);
                 commit.set_object_id(hash);
-                T::from(commit)
+                commit
             }
+            _ => panic!("Unknown object type: {}", object_type),
+        }
+    }
 
+    pub fn load_tree(&self, hash: &str, path_init: PathBuf) -> Tree {
+        // check if the object is in the cache
+        let decompressed_object = self.read_object(hash);
+        let mut input = decompressed_object.as_slice();
+        let (object_type, size) = parse_header(&mut input).unwrap();
+
+        // if not found in cache, read from file system
+        match object_type.as_str() {
             "tree" => {
-
                 let mut entry_tree_map = IndexMap::new();
                 let mut entry_line_map = IndexMap::new();
                 let start_len = input.len();
@@ -210,13 +221,13 @@ where
                             match typed_entry.mode() {
                                 TreeEntryMode::Tree => {
                                     let tree_id = typed_entry.object_id().clone();
-                                    let subtree = self.load(&typed_entry.object_id(),path_init.join(relative_path.clone()));
+                                    let subtree = self.load_tree(&typed_entry.object_id(),path_init.join(relative_path.clone()));
 
-                                    //let tree_entry = TreeEntry::SubTree(subtree);
+                                    let tree_entry = TreeEntry::SubTree(subtree.clone());
 
                                     entry_tree_map.insert(relative_path,tree_entry);
                                     // 合并子树的 entries_list
-                                    for (sub_path, sub_entry) in &subtree.entries_list {
+                                    for (sub_path, sub_entry) in &subtree.entry_lines_map {
                                         entry_line_map.insert(sub_path.clone(), sub_entry.clone());
                                     }
 
@@ -225,7 +236,7 @@ where
                                 _ => {
                                     let mode = typed_entry.mode().clone();
 
-                                    let entry = Entry::new(
+                                    let entry = TreeEntryLine::new(
                                         relative_path.clone(),
                                         &typed_entry.object_id(),
                                         mode,
@@ -238,45 +249,16 @@ where
                         Err(_) => break,
                     }
                 }
-                GitObject::Tree(
+
                     Tree {
-                        entries: entry_tree_map,
-                        entries_list: entry_line_map,
+                        entry_tree_map,
                         object_id: hash.to_string(),
+                        entry_lines_map: entry_line_map,
                     }
-                )
+
             }
             _ => panic!("Unknown object type: {}", object_type),
         }
-    }
-    pub fn load_blob(&self, hash: &str) -> Blob {
-        let content = self.read_object(hash);
-        let content = String::from_utf8(content).unwrap();
-        let mut iter = content.splitn(2, '\0');
-        let type_and_len = iter.next().unwrap();
-        let type_and_len: Vec<&str> = type_and_len.split(' ').collect();
-        let type_ = type_and_len[0];
-        let len = type_and_len[1];
-        let blob_data = iter.next().unwrap();
-        let mut blob = Blob::from(blob_data);
-        blob.set_object_id(&hash);
-        blob
-    }
-
-    pub fn load_commit(&self, hash: &str) -> Commit {
-        //println!("load commit with hash:{}", hash);
-        let content = self.read_object(hash);
-        let content = String::from_utf8(content).unwrap();
-        let mut iter = content.splitn(2, '\0');
-        let type_and_len = iter.next().unwrap();
-        let type_and_len: Vec<&str> = type_and_len.split(' ').collect();
-        let type_ = type_and_len[0];
-        let len = type_and_len[1];
-        let commit_data = iter.next().unwrap();
-        let mut commit = Commit::from(commit_data);
-
-        commit.set_object_id(hash);
-        commit
     }
     pub fn find_a_commit(&self, part_hash: &str) -> Option<String> {
         // find a file with part hash
@@ -328,98 +310,98 @@ where
         type_ == "commit"
     }
 
+    // //
+    // pub fn load_tree(&self, hash: &str, path_init: PathBuf) -> Tree {
+    //     let content = self.read_object(hash);
+    //     // convert to str
+    //     let mut entries_map = IndexMap::new();
+    //     let mut entries_list_map: IndexMap<PathBuf, TreeEntryLine> = IndexMap::new();
+    //     //tree with hash:fe002358f136fdcc8fbfd7a8cdc687fee7ee6429
+    //     // data is : "100644 abc\0�⛲��CK�)�wZ���S�100644 abcdefg\0�⛲��CK�)�wZ���S�"
+    //     // 如何解析这个字符串100644 abc\0�⛲��CK�)�wZ���S� 为一组？
+    //     //String::from_utf8(content).unwrap(); 不能像上面这样转换，因为中间会有utf8error，
+    //     let mut tree: Tree = Default::default();
     //
-    pub fn load_tree(&self, hash: &str, path_init: PathBuf) -> Tree {
-        let content = self.read_object(hash);
-        // convert to str
-        let mut entries_map = IndexMap::new();
-        let mut entries_list_map: IndexMap<PathBuf, TreeEntryLine> = IndexMap::new();
-        //tree with hash:fe002358f136fdcc8fbfd7a8cdc687fee7ee6429
-        // data is : "100644 abc\0�⛲��CK�)�wZ���S�100644 abcdefg\0�⛲��CK�)�wZ���S�"
-        // 如何解析这个字符串100644 abc\0�⛲��CK�)�wZ���S� 为一组？
-        //String::from_utf8(content).unwrap(); 不能像上面这样转换，因为中间会有utf8error，
-        let mut tree: Tree = Default::default();
-
-        let mut cursor = std::io::Cursor::new(content);
-        let mut buf1 = vec![];
-        cursor.read_until(b'\0', &mut buf1).unwrap();
-        let type_and_len = String::from_utf8(buf1).unwrap();
-        let type_and_len: Vec<&str> = type_and_len.split(' ').collect();
-        let type_ = type_and_len[0];
-        let len = type_and_len[1];
-        let len = len.trim_end_matches('\0');
-        let len = len.parse::<usize>().unwrap();
-        let mut i = 0;
-        let mut buf = vec![];
-        loop {
-            if i >= len {
-                break;
-            }
-            cursor.read_until(b' ', &mut buf).unwrap();
-
-            let mode = String::from_utf8_lossy(&buf.clone()).to_string();
-            i += mode.len();
-            let mode = mode.trim_end_matches(' ');
-
-            buf.clear();
-            if mode == "40000" {
-                //tree
-                cursor.read_until(b'\0', &mut buf).unwrap();
-
-                let path = String::from_utf8(buf.clone()).unwrap();
-                i += path.len();
-                buf.clear();
-                let path = path.trim_end_matches('\0');
-
-                let path = PathBuf::from(path);
-                // read 20 byte
-                let mut hash = vec![0; 20];
-                cursor.read_exact(&mut hash).unwrap();
-                i += 20;
-                let tree_oid = hex::encode(hash.clone());
-                let subtree = self.load_tree(tree_oid.as_str(), path_init.join(path.clone()));
-                let tree_entry = TreeEntryLine::SubTree(subtree.clone());
-                entries_map.insert(path.clone(), tree_entry);
-                let elist = subtree.entry_lines_map.clone();
-                for (k, v) in elist.iter() {
-                    entries_list_map.insert(k.clone(), v.clone());
-                }
-            } else {
-                //entry
-                cursor.read_until(b'\0', &mut buf).unwrap();
-
-                let path = String::from_utf8(buf.clone()).unwrap();
-                i += path.len();
-                buf.clear();
-                let path = path.trim_end_matches('\0');
-                let path = PathBuf::from(path);
-
-                let mut hash = vec![0; 20];
-
-                cursor.read_exact(&mut hash).unwrap();
-
-                i += 20;
-                let object_id = hex::encode(hash.clone());
-                let entry = TreeEntryLine::new(path_init.join(path.clone()), &object_id, mode);
-                let tree_entry = TreeEntryLine::Entry(entry.clone());
-                entries_map.insert(path.clone(), tree_entry.clone());
-
-                entries_list_map.insert(path_init.join(path.clone()), entry.clone());
-            }
-        }
-
-        tree.entry_tree_map = entries_map;
-        tree.entry_lines_map = entries_list_map;
-        tree.object_id = hash.to_string();
-        tree
-    }
+    //     let mut cursor = std::io::Cursor::new(content);
+    //     let mut buf1 = vec![];
+    //     cursor.read_until(b'\0', &mut buf1).unwrap();
+    //     let type_and_len = String::from_utf8(buf1).unwrap();
+    //     let type_and_len: Vec<&str> = type_and_len.split(' ').collect();
+    //     let type_ = type_and_len[0];
+    //     let len = type_and_len[1];
+    //     let len = len.trim_end_matches('\0');
+    //     let len = len.parse::<usize>().unwrap();
+    //     let mut i = 0;
+    //     let mut buf = vec![];
+    //     loop {
+    //         if i >= len {
+    //             break;
+    //         }
+    //         cursor.read_until(b' ', &mut buf).unwrap();
+    //
+    //         let mode = String::from_utf8_lossy(&buf.clone()).to_string();
+    //         i += mode.len();
+    //         let mode = mode.trim_end_matches(' ');
+    //
+    //         buf.clear();
+    //         if mode == "40000" {
+    //             //tree
+    //             cursor.read_until(b'\0', &mut buf).unwrap();
+    //
+    //             let path = String::from_utf8(buf.clone()).unwrap();
+    //             i += path.len();
+    //             buf.clear();
+    //             let path = path.trim_end_matches('\0');
+    //
+    //             let path = PathBuf::from(path);
+    //             // read 20 byte
+    //             let mut hash = vec![0; 20];
+    //             cursor.read_exact(&mut hash).unwrap();
+    //             i += 20;
+    //             let tree_oid = hex::encode(hash.clone());
+    //             let subtree = self.load_tree(tree_oid.as_str(), path_init.join(path.clone()));
+    //             let tree_entry = TreeEntryLine::SubTree(subtree.clone());
+    //             entries_map.insert(path.clone(), tree_entry);
+    //             let elist = subtree.entry_lines_map.clone();
+    //             for (k, v) in elist.iter() {
+    //                 entries_list_map.insert(k.clone(), v.clone());
+    //             }
+    //         } else {
+    //             //entry
+    //             cursor.read_until(b'\0', &mut buf).unwrap();
+    //
+    //             let path = String::from_utf8(buf.clone()).unwrap();
+    //             i += path.len();
+    //             buf.clear();
+    //             let path = path.trim_end_matches('\0');
+    //             let path = PathBuf::from(path);
+    //
+    //             let mut hash = vec![0; 20];
+    //
+    //             cursor.read_exact(&mut hash).unwrap();
+    //
+    //             i += 20;
+    //             let object_id = hex::encode(hash.clone());
+    //             let entry = TreeEntryLine::new(path_init.join(path.clone()), &object_id, mode);
+    //             let tree_entry = TreeEntryLine::Entry(entry.clone());
+    //             entries_map.insert(path.clone(), tree_entry.clone());
+    //
+    //             entries_list_map.insert(path_init.join(path.clone()), entry.clone());
+    //         }
+    //     }
+    //
+    //     tree.entry_tree_map = entries_map;
+    //     tree.entry_lines_map = entries_list_map;
+    //     tree.object_id = hash.to_string();
+    //     tree
+    // }
 
     pub fn tree_diff(&self, old_c: &str, new_c: &str) -> IndexMap<PathBuf, (String, String)> {
         //let mut changes: IndexMap<PathBuf, (GHash, GHash)> = IndexMap::new();
         let old_commit = self.load_commit(old_c);
         let new_commit = self.load_commit(new_c);
-        let o_tree_oid = &old_commit.tree_id;
-        let n_tree_oid = &new_commit.tree_id;
+        let o_tree_oid = &old_commit.tree_id();
+        let n_tree_oid = &new_commit.tree_id();
         let old_tree = self.load_tree(o_tree_oid, PathBuf::new());
         let new_tree = self.load_tree(n_tree_oid, PathBuf::new());
         let changes = compare_head_target(old_tree.entry_lines_map, new_tree.entry_lines_map);
@@ -471,12 +453,5 @@ fn compare_head_target(
     changes
 }
 
-pub trait GitObject {
-    fn object_id(&self) -> String;
-    fn set_object_id(&mut self, oid: &str);
-    fn object_type(&self) -> String;
-    //fn to_string(&self) -> String;
 
-    fn to_string(&self) -> Vec<u8>;
-}
 

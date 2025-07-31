@@ -2,13 +2,13 @@ use std::path::PathBuf;
 use tracing::info;
 use crate::database::author::Author;
 use crate::database::commit::Commit;
-use crate::database::GitObject;
+use crate::database::{Database};
 use crate::database::tree::Tree;
 use crate::tree_entry::TreeEntryLine;
 use crate::index::Index;
 use crate::repository::Repository;
 
-pub fn write_commit(mut index:Index, parents:Option<Vec<String>>, message: String) ->String{
+pub fn write_commit(index:& mut Index, database :&mut Database, parents:Vec<String>, message: String) ->String{
 
     let index_entrys = index.load_for_update();
     // convert index_entrys to entrys
@@ -27,7 +27,7 @@ pub fn write_commit(mut index:Index, parents:Option<Vec<String>>, message: Strin
             mode = "100644"
         }
 
-        let entry = TreeEntryLine::new(file_path, &bhash, mode);
+        let entry = TreeEntryLine::new(file_path, &bhash, mode.into());
         entrys.push(entry);
     }
 
@@ -35,7 +35,7 @@ pub fn write_commit(mut index:Index, parents:Option<Vec<String>>, message: Strin
     let mut tree = Tree::new(entrys);
     //let ff=database.store_tree;
     let func = |e: &mut Tree| {
-        repo.database.store(e)
+        database.store_tree(e)
         //database.store_tree(e);
     };
     tree.traverse(&func);
@@ -45,12 +45,12 @@ pub fn write_commit(mut index:Index, parents:Option<Vec<String>>, message: Strin
 
     let name = "rain";
     let email = "1344535251@qq.com";
-    //let message = "first commit";
-    let author = Author::new(name, email);
+    let date = chrono::Local::now();
+    let author = Author::new(name, email,date);
 
-    let mut commit = Commit::new(parents, &tree_hash, author, message.as_str());
+    let mut commit = Commit::new(&tree_hash,parents, author.clone(), author, message.as_str());
 
-      repo.database.store(&mut commit);
+      database.store_commit(&mut commit);
     //refs.update_HEAD(&commit_hash);
     let commit_hash = commit.object_id();
     commit_hash.to_string()

@@ -3,77 +3,7 @@ use crate::cli::{AddArgs, CommitArgs};
 use crate::command::base::CommandBase;
 use crate::command::Command;
 use crate::command::shared::write_commit::write_commit;
-// use crate::repository::write_commit;
 
-// use crate::database::commit::Commit;
-// use crate::database::tree::Tree;
-// use crate::database::{Database, GHash};
-// use crate::entry::Entry;
-// use crate::repository::{Repo, write_commit};
-// use crate::util;
-// use std::fs::Metadata;
-// use std::os::unix::fs::{MetadataExt, PermissionsExt};
-// use std::path::PathBuf;
-// use tracing::info;
-//
-// pub struct Commit {
-//     root_path: PathBuf,
-//     repo: Repo,
-// }
-//
-// impl Commit {
-//     pub fn new(root_path: PathBuf) -> Self {
-//         let repo = Repo::new(root_path.join(".git"));
-//         Commit { root_path, repo }
-//     }
-//
-//     fn root_path(&self) -> PathBuf {
-//         self.root_path.clone()
-//     }
-//
-//     fn repo(&self) -> &Repo {
-//         &self.repo
-//     }
-//
-//     pub fn run(&self, message: String) {
-//         let repo = self.repo();
-//         let refs = repo.refs();
-//
-//
-//         let refs_empty = refs.refs_heads_is_empty();
-//         let mut commit_hash:GHash="".to_string();
-//         let parent_id = refs.read_HEAD();
-//         if !refs_empty {
-//
-//             commit_hash =write_commit(repo, Some(vec![parent_id.clone()]), message.clone());
-//         } else {
-//             commit_hash = write_commit(repo, None, message.clone());
-//         }
-//
-//         // let commit = GCommit::new(parent_id.clone(), tree_hash.to_string(), author, message.as_str());
-//
-//
-//         let current_branch = refs.current_branch();
-//
-//         info!("current branch  is : {:?}", current_branch);
-//         info!("current commit hash is : {:?}", commit_hash);
-//         info!("parent commit hash is : {:?}", parent_id);
-//         info!("commit message: {:?}", message);
-//
-//         if !refs_empty {
-//             let text = format!("[{} {}] {}", current_branch, &commit_hash[0..6], message);
-//             util::write_blackln(text.as_str());
-//         } else {
-//             let text = format!(
-//                 "[{} (root-commit) {}] {}",
-//                 current_branch,
-//                 &commit_hash[0..6],
-//                 message
-//             );
-//             util::write_blackln(text.as_str());
-//         }
-//     }
-// }
 pub struct CommitCommand {
     base: CommandBase,
     args: CommitArgs,
@@ -104,6 +34,7 @@ impl Command for CommitCommand {
 
     fn run(&mut self) -> Result<(), Box<dyn Error>> {
         let mut index =self.base.index();
+        let mut database = self.base.database();
         //let refs = repo.refs();
         index.load_for_update();
                 // let refs_empty = repo.refs().refs_heads_is_empty();
@@ -115,10 +46,10 @@ impl Command for CommitCommand {
                 // } else {
                 //     commit_hash = write_commit(repo, None,self.commit_message().clone());
                 // }
-        let commit_hash = write_commit(index, None,self.commit_message().clone());
+        let commit_hash = write_commit(&mut index,&mut database, vec![],self.commit_message().clone());
 
                 // let commit = GCommit::new(parent_id.clone(), tree_hash.to_string(), author, message.as_str());
-    println!("{commit_hash: } {:?}", commit_hash);
+        println!("{commit_hash: } {:?}", commit_hash);
 
         //         let current_branch = refs.current_branch();
         // println!("current branch  is : {:?}", current_branch);

@@ -40,6 +40,8 @@ impl CommandBase {
             verbose,
             index: Index::new(dir.clone().join(".git/index")),
             refs: Refs::new(dir.clone().join(".git/refs")),
+            workspace: Workspace::new(dir.clone()),
+            database: Database::new(dir.clone().join(".git/objects")),
         }
     }
 
@@ -53,6 +55,13 @@ impl CommandBase {
 
     pub fn refs(&self) ->Refs {
         self.refs.clone()
+    }
+    
+    pub fn workspace(&self) -> Workspace {
+        self.workspace.clone()
+    }
+    pub fn database(&self) -> Database {
+        self.database.clone()
     }
 
     pub(crate) fn expanded_pathname(&self, path: &PathBuf) -> PathBuf {
