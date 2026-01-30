@@ -39,7 +39,7 @@ impl CommandBase {
             isatty,
             verbose,
             index: Index::new(dir.clone().join(".git/index")),
-            refs: Refs::new(dir.clone().join(".git/refs")),
+            refs: Refs::new(dir.clone().join(".git")),
             workspace: Workspace::new(dir.clone()),
             database: Database::new(dir.clone().join(".git/objects")),
         }

@@ -37,15 +37,8 @@ impl Command for CommitCommand {
         let mut database = self.base.database();
         //let refs = repo.refs();
         index.load_for_update();
-                // let refs_empty = repo.refs().refs_heads_is_empty();
-                // let mut commit_hash="".to_string();
-                // let parent_id = repo.refs().read_HEAD();
-                // if !refs_empty {
-                //
-                //     commit_hash =write_commit(repo, Some(vec![parent_id.clone()]),self.commit_message().clone());
-                // } else {
-                //     commit_hash = write_commit(repo, None,self.commit_message().clone());
-                // }
+        let parent_id = self.base.refs().read_HEAD();
+        
         let commit_hash = write_commit(&mut index,&mut database, vec![],self.commit_message().clone());
 
                 // let commit = GCommit::new(parent_id.clone(), tree_hash.to_string(), author, message.as_str());

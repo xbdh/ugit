@@ -17,13 +17,14 @@ pub struct Refs {
 
 
 
-struct Sysref {
+struct RefHEAD {
     path:PathBuf,
+    //content : String,
 }
 
-impl Sysref {
+impl RefHEAD {
     pub fn read(&self) -> String{
-        let content = std::fs::read_to_string(self.path.clone()).unwrap();
+        let content = fs::read_to_string(self.path.clone()).unwrap();
         let content = content.trim_end().to_string();
         content
     }
@@ -35,12 +36,12 @@ impl Sysref {
          name
     }
 }
-struct Oidref {
+struct HashHEAD {
     oid: String,
 }
 enum Ref{
-    Sys(Sysref),
-    Oid(Oidref),
+    RefHead(RefHEAD),
+    HashHead(HashHEAD),
 }
 
 impl Refs {
@@ -160,23 +161,23 @@ impl Refs {
         let mut head_path = self.path_name.clone();
         head_path.push("HEAD");
         // in case of file not head is empty
-        let path_content = std::fs::read_to_string(head_path).unwrap();
+        let path_content = fs::read_to_string(head_path).unwrap();
         // if path_content contains ref: refs/heads/main
         if path_content.contains("ref: refs/heads/") {
             let branch_name = path_content.split("/").collect::<Vec<&str>>()[2].to_string();
             let name = branch_name.trim_end();
             let mut branch_path = self.heads_path.clone();
             branch_path.push(name);
-            let sysref = Sysref{
+            let sysref = RefHEAD {
                 path:branch_path,
             };
-            Ref::Sys(sysref)
+            Ref::RefHead(sysref)
         }else{
             let oid = path_content.trim_end().to_string();
-            let oidref = Oidref{
+            let oidref = HashHEAD {
                 oid:oid,
             };
-            Ref::Oid(oidref)
+            Ref::HashHead(oidref)
         }
     }
 
@@ -186,11 +187,11 @@ impl Refs {
         // in case of file not head is empty
         let r = self.get_oid_or_ref();
          match r{
-              Ref::Sys(sysref)=>{
-                sysref.read()
-              },
-              Ref::Oid(oidref)=>{
-                oidref.oid
+              Ref::RefHead(ref_head)=>{
+                ref_head.read()
+              }
+              Ref::HashHead(hash_head)=>{
+                hash_head.oid
               }
          }
     }
@@ -199,10 +200,10 @@ impl Refs {
     pub fn update_HEAD(&self, oid:&str){
         let r = self.get_oid_or_ref();
             match r{
-                Ref::Sys(sysref)=>{
-                    sysref.set(oid.clone())
-                },
-                Ref::Oid(oidref)=>{
+                Ref::RefHead(ref_head)=>{
+                    ref_head.set(oid.clone())
+                }
+                Ref::HashHead(hash_head)=>{
                     let mut head_path = self.path_name.clone();
                     head_path.push("HEAD");
                     fs::write(&head_path, format!("{}\n", oid)).unwrap();
@@ -225,11 +226,11 @@ impl Refs {
     pub fn current_branch_name(&self) -> CurrentBranch{
         let r = self.get_oid_or_ref();
         match r{
-            Ref::Sys(sysref)=>{
+            Ref::RefHead(sysref)=>{
                 let n=sysref.get_branch_name();
                 CurrentBranch::Branch(n)
             },
-            Ref::Oid(oidref)=>{
+            Ref::HashHead(oidref)=>{
                 CurrentBranch::Detached(oidref.oid)
             }
         }
